@@ -1,17 +1,11 @@
----------------------------
--- Default awesome theme --
----------------------------
-
 local theme_assets = require("beautiful.theme_assets")
 local xresources = require("beautiful.xresources")
 local dpi = xresources.apply_dpi
-
 local gfs = require("gears.filesystem")
-local themes_path = gfs.get_themes_dir()
 
 local theme = {}
 
-theme.font          = "Inconsolata for Powerline:style=Medium " .. font_size
+theme.font          = "Inconsolata for Powerline:style=Medium 13"
 
 theme.bg_normal     = "#222222"
 theme.bg_focus      = "#222222"
@@ -47,13 +41,8 @@ theme.hotkeys_description_font  = theme.font
 --theme.taglist_bg_focus = "#ff0000"
 
 -- Generate taglist squares:
-local taglist_square_size = dpi(4)
-theme.taglist_squares_sel = theme_assets.taglist_squares_sel(
-    taglist_square_size, theme.fg_normal
-)
-theme.taglist_squares_unsel = theme_assets.taglist_squares_unsel(
-    taglist_square_size, theme.fg_normal
-)
+theme.taglist_squares_sel   = theme_assets.taglist_squares_sel  ( dpi(4), theme.fg_normal )
+theme.taglist_squares_unsel = theme_assets.taglist_squares_unsel( dpi(4), theme.fg_normal )
 
 -- Variables set for theming notifications:
 -- notification_font
@@ -61,11 +50,7 @@ theme.taglist_squares_unsel = theme_assets.taglist_squares_unsel(
 -- notification_[width|height|margin]
 -- notification_[border_color|border_width|shape|opacity]
 
-theme.wallpaper = themes_path.."default/background.png"
-
--- Define the icon theme for application icons. If not set then the icons
--- from /usr/share/icons and /usr/share/icons/hicolor will be used.
-theme.icon_theme = nil
+theme.wallpaper = gfs.get_configuration_dir() .. "background.png"
 
 return theme
 
