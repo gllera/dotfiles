@@ -1,0 +1,14 @@
+configuration {
+    font: "Inconsolata for Powerline:style=Medium 18";
+    terminal: "urxvt";
+}
+
+@import "/usr/share/rofi/themes/android_notification.rasi"
+
+#scrollbar {
+    width:        0;
+    border:       0;
+    handle-width: 0;
+    padding:      0;
+}
+
