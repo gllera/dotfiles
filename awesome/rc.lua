@@ -7,11 +7,12 @@ local menubar = require("menubar")
 local beautiful = require("beautiful")
 local hotkeys_popup = require("awful.hotkeys_popup")
 
+require("awful.autofocus")
+require("basic")
+
 beautiful.init( gears.filesystem.get_configuration_dir() .. "theme.lua")
 theme = beautiful
 
-require("awful.autofocus")
-require("basic")
 require("meh")
 
 terminal = os.getenv("TERMINAL") or "urxvtc"
@@ -39,6 +40,8 @@ local function set_wallpaper(s)
     -- Wallpaper
     if theme.wallpaper then
         local wallpaper = theme.wallpaper
+
+        naughty.notify( { text = wallpaper } )
         -- If wallpaper is a function, call it with the screen
         if type(wallpaper) == "function" then
             wallpaper = wallpaper(s)
@@ -117,11 +120,11 @@ globalkeys = gears.table.join(
     awful.key( { modkey,           }, "b",                  fWiboxH,                                 { group = "layout", description = "show/hide top bar" } ),
     awful.key( { modkey,           }, "u",                  awful.client.urgent.jumpto,              { group = "client", description = "jump to urgent client" } ),
     awful.key( { modkey,           }, "Tab",                fPrev,                                   { group = "client", description = "go back" } ),
-    awful.key( { modkey,           }, "0",     function ()  fSetVol("0",   "0")                 end, { group = "client", description = "set volumen 0%" } ),
-    awful.key( { modkey,           }, "6",     function ()  fSetVol("60", "25")                 end, { group = "client", description = "set volumen 25%" } ),
-    awful.key( { modkey,           }, "7",     function ()  fSetVol("70", "50")                 end, { group = "client", description = "set volumen 50%" } ),
-    awful.key( { modkey,           }, "8",     function ()  fSetVol("80", "75")                 end, { group = "client", description = "set volumen 75%" } ),
-    awful.key( { modkey,           }, "9",     function ()  fSetVol("90","100")                 end, { group = "client", description = "set volumen 100%" } )
+    awful.key( { modkey,           }, "6",     function ()  fSetVol("0",   "0")                 end, { group = "client", description = "set volumen 0%" } ),
+    awful.key( { modkey,           }, "7",     function ()  fSetVol("60", "25")                 end, { group = "client", description = "set volumen 25%" } ),
+    awful.key( { modkey,           }, "8",     function ()  fSetVol("70", "50")                 end, { group = "client", description = "set volumen 50%" } ),
+    awful.key( { modkey,           }, "9",     function ()  fSetVol("80", "75")                 end, { group = "client", description = "set volumen 75%" } ),
+    awful.key( { modkey,           }, "0",     function ()  fSetVol("90","100")                 end, { group = "client", description = "set volumen 100%" } )
 )
 
 for i = 1, 5 do
