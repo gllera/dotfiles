@@ -1,11 +1,9 @@
 local theme_assets = require("beautiful.theme_assets")
-local xresources = require("beautiful.xresources")
-local dpi = xresources.apply_dpi
 local gfs = require("gears.filesystem")
 
 local theme = {}
 
-theme.font          = "Inconsolata for Powerline:style=Medium 13"
+theme.font          = "DejaVuSansMono Nerd Font Mono 13"
 
 theme.bg_normal     = "#222222"
 theme.bg_focus      = "#222222"
@@ -18,11 +16,7 @@ theme.fg_focus      = "#ffffff"
 theme.fg_urgent     = "#ffffff"
 theme.fg_minimize   = "#ffffff"
 
-theme.useless_gap   = dpi(2)
-theme.border_width  = dpi(1)
-theme.border_normal = "#000000"
-theme.border_focus  = "#535d6c"
-theme.border_marked = "#91231c"
+theme.border_width  = dpi(0)
 
 theme.hotkeys_font  = theme.font
 theme.hotkeys_description_font  = theme.font

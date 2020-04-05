@@ -1,5 +1,5 @@
 configuration {
-    font: "Inconsolata for Powerline:style=Medium 18";
+    font: "DejaVuSansMono Nerd Font Mono 18";
     terminal: "urxvt";
 }
 

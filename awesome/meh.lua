@@ -21,4 +21,4 @@ function fSetVol(a, s)
   NotifyVol = naughty.notify( { text = "Vol: " .. s } )
 end
 
-temp_widget = awful.widget.watch( 'date', 15)
+temp_widget = awful.widget.watch( 'status_oneliner', 15)

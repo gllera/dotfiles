@@ -1,7 +1,9 @@
 Xft.dpi: 120
 
-*.font:     xft:Inconsolata for Powerline:style=Medium:size=12
-*.boldFont: xft:Inconsolata for Powerline:style=BoldForPowerline:size=12
+*.font:           xft:DejaVuSansMono Nerd Font Mono:style=Book:size=12
+*.boldFont:       xft:DejaVuSansMono Nerd Font Mono:style=Bold:size=12
+*.italicFont:     xft:DejaVuSansMono Nerd Font Mono:style=Oblique:size=12
+*.boldItalicFont: xft:DejaVuSansMono Nerd Font Mono:style=Bold Oblique:size=12
 
 ! special
 *.foreground:   #ffffff
@@ -50,6 +52,7 @@ URxvt.scrollBar: false
 URxvt.scrollBar_right: false
 URxvt.urgentOnBell: true
 URxvt.iso14755: false
+URxvt.loginShell: true
 
 URxvt.perl-ext-common: default,selection-to-clipboard
 URxvt.keysym.Shift-Control-V: eval:paste_clipboard
