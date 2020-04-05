@@ -14,22 +14,25 @@ dpi = beautiful.xresources.apply_dpi
 beautiful.init( gears.filesystem.get_configuration_dir() .. "theme.lua")
 theme = beautiful
 
+client.connect_signal( "focus",        function(c) c.border_color = beautiful.border_focus end )
+client.connect_signal( "unfocus",      function(c) c.border_color = beautiful.border_normal end )
+
 require("meh")
 
 terminal = os.getenv("TERMINAL") or "urxvtc"
-browser  = os.getenv("BROWSER")  or "chromium"
-editor   = os.getenv("EDITOR")   or "vim"
+browser  = os.getenv("BROWSER")  or "google-chrome-stable"
+editor   = os.getenv("EDITOR")   or "code"
 
 modkey = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
---    awful.layout.suit.floating,
+    awful.layout.suit.spiral.dwindle,
     awful.layout.suit.tile,
     awful.layout.suit.fair,
---    awful.layout.suit.fair.horizontal,
+    awful.layout.suit.fair.horizontal,
+    awful.layout.suit.floating,
 --    awful.layout.suit.spiral,
---    awful.layout.suit.spiral.dwindle,
 --    awful.layout.suit.max,
 --    awful.layout.suit.max.fullscreen,
 --    awful.layout.suit.magnifier,
@@ -105,15 +108,20 @@ globalkeys = gears.table.join(
     awful.key( { modkey,           }, "Escape",             awful.tag.history.restore,               { group = "tag",      description = "go back" } ),
     awful.key( { modkey,           }, "Return", function () awful.spawn(terminal)               end, { group = "launcher", description = "run terminal" } ),
     awful.key( { modkey,           }, "w",      function () awful.spawn(browser)                end, { group = "launcher", description = "run browser" } ),
+    awful.key( { modkey,           }, "e",      function () awful.spawn(editor)                 end, { group = "launcher", description = "run editor" } ),
     awful.key( { modkey,           }, "r",                  fRofi,                                   { group = "launcher", description = "run" } ),
     awful.key( { modkey,           }, "p",      function () menubar.show()                      end, { group = "launcher", description = "show the menubar" } ),
-    awful.key( { modkey,           }, "j",      function () awful.client.focus.byidx( 1 )       end, { group = "client", description = "focus next by index" } ),
-    awful.key( { modkey,           }, "k",      function () awful.client.focus.byidx( -1 )      end, { group = "client", description = "focus previous by index" } ),
-    awful.key( { modkey, "Shift"   }, "j",      function () awful.client.swap.byidx(  1 )       end, { group = "client", description = "swap with next client by index" } ),
-    awful.key( { modkey, "Shift"   }, "k",      function () awful.client.swap.byidx( -1 )       end, { group = "client", description = "swap with previous client by index" } ),
-    awful.key( { modkey, "Control" }, "j",      function () awful.screen.focus_relative( 1 )    end, { group = "screen", description = "focus the next screen" } ),
-    awful.key( { modkey, "Control" }, "k",      function () awful.screen.focus_relative( -1 )   end, { group = "screen", description = "focus the previous screen" } ),
+    awful.key( { modkey,           }, "j",      function () awful.client.focus.byidx( 1)      end, { group = "client", description = "focus next by index" } ),
+    awful.key( { modkey,           }, "k",      function () awful.client.focus.byidx(-1)      end, { group = "client", description = "focus previous by index" } ),
+    awful.key( { modkey, "Shift"   }, "j",      function () awful.client.swap.byidx( 1)       end, { group = "client", description = "swap with next client by index" } ),
+    awful.key( { modkey, "Shift"   }, "k",      function () awful.client.swap.byidx(-1)       end, { group = "client", description = "swap with previous client by index" } ),
+    awful.key( { modkey, "Control" }, "j",      function () awful.screen.focus_relative( 1)   end, { group = "screen", description = "focus the next screen" } ),
+    awful.key( { modkey, "Control" }, "k",      function () awful.screen.focus_relative(-1)   end, { group = "screen", description = "focus the previous screen" } ),
     -- Standard program
+    awful.key( { modkey,           }, "[",      function () useless_gaps_resize(-3)             end, {description = "increment useless gaps", group = "tag"}),
+    awful.key( { modkey,           }, "]",      function () useless_gaps_resize( 3)              end, {description = "decrement useless gaps", group = "tag"}),
+    awful.key( { modkey, "Control" }, "[",      function () useless_margin_resize(-3)           end, {description = "increment useless margins", group = "tag"}),
+    awful.key( { modkey, "Control" }, "]",      function () useless_margin_resize( 3)            end, {description = "decrement useless margins", group = "tag"}),
     awful.key( { modkey,           }, "l",      function () awful.tag.incmwfact( 0.05)          end, { group = "layout", description = "increase master width factor" } ),
     awful.key( { modkey,           }, "h",      function () awful.tag.incmwfact(-0.05)          end, { group = "layout", description = "decrease master width factor" } ),
     awful.key( { modkey, "Shift"   }, "h",      function () awful.tag.incnmaster( 1, nil, true) end, { group = "layout", description = "increase the number of master clients" } ),

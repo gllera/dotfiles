@@ -1,4 +1,7 @@
-chromium
-dconf
+/chromium
+/google-chrome
+/dconf
+/menus
+/Code
 .*
 !.gitignore
