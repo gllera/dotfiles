@@ -3,5 +3,6 @@
 /dconf
 /menus
 /Code
+/vlc
 .*
 !.gitignore
