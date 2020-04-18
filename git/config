@@ -1,0 +1,7 @@
+[user]
+	email = gabriellleragarcia@gmail.com
+	name = gllera
+[credential]
+	helper = store
+[core]
+	pager = diff-so-fancy | less --tabs=4 -RFX

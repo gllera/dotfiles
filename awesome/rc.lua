@@ -23,7 +23,7 @@ terminal = os.getenv("TERMINAL") or "urxvtc"
 browser  = os.getenv("BROWSER")  or "google-chrome-stable"
 editor   = os.getenv("EDITOR")   or "code"
 
-modkey = "Mod4"
+MOD = "Mod4"
 
 -- Table of layouts to cover with awful.layout.inc, order matters.
 awful.layout.layouts = {
@@ -90,76 +90,79 @@ awful.screen.connect_for_each_screen(function(s)
 	    temp_widget,
         },
     }
+
+    s.mywibox.visible = false
 end)
 -- }}}
 
 -- {{{ Key bindings
 globalkeys = gears.table.join(
-    awful.key( { modkey            }, "s",                  hotkeys_popup.show_help,                 { group = "awesome",  description = "show help" } ),
-    awful.key( { modkey, "Control" }, "r",                  awesome.restart,                         { group = "awesome",  description = "reload awesome" } ),
-    awful.key( { modkey, "Shift"   }, "q",                  awesome.quit,                            { group = "awesome",  description = "quit awesome" } ),
-    awful.key( { modkey,           }, "6",     function ()  fSetVol("0",   "0")                 end, { group = "system",  description = "set volumen 0%" } ),
-    awful.key( { modkey,           }, "7",     function ()  fSetVol("60", "25")                 end, { group = "system",  description = "set volumen 25%" } ),
-    awful.key( { modkey,           }, "8",     function ()  fSetVol("70", "50")                 end, { group = "system",  description = "set volumen 50%" } ),
-    awful.key( { modkey,           }, "9",     function ()  fSetVol("80", "75")                 end, { group = "system",  description = "set volumen 75%" } ),
-    awful.key( { modkey,           }, "0",     function ()  fSetVol("90","100")                 end, { group = "system",  description = "set volumen 100%" } ),
-    awful.key( { modkey,           }, "Left",               awful.tag.viewprev,                      { group = "tag",      description = "view previous" } ),
-    awful.key( { modkey,           }, "Right",              awful.tag.viewnext,                      { group = "tag",      description = "view next" } ),
-    awful.key( { modkey,           }, "Escape",             awful.tag.history.restore,               { group = "tag",      description = "go back" } ),
-    awful.key( { modkey,           }, "Return", function () awful.spawn(terminal)               end, { group = "launcher", description = "run terminal" } ),
-    awful.key( { modkey,           }, "w",      function () awful.spawn(browser)                end, { group = "launcher", description = "run browser" } ),
-    awful.key( { modkey,           }, "e",      function () awful.spawn(editor)                 end, { group = "launcher", description = "run editor" } ),
-    awful.key( { modkey,           }, "r",                  fRofi,                                   { group = "launcher", description = "run" } ),
-    awful.key( { modkey,           }, "p",      function () menubar.show()                      end, { group = "launcher", description = "show the menubar" } ),
-    awful.key( { modkey,           }, "j",      function () awful.client.focus.byidx( 1)      end, { group = "client", description = "focus next by index" } ),
-    awful.key( { modkey,           }, "k",      function () awful.client.focus.byidx(-1)      end, { group = "client", description = "focus previous by index" } ),
-    awful.key( { modkey, "Shift"   }, "j",      function () awful.client.swap.byidx( 1)       end, { group = "client", description = "swap with next client by index" } ),
-    awful.key( { modkey, "Shift"   }, "k",      function () awful.client.swap.byidx(-1)       end, { group = "client", description = "swap with previous client by index" } ),
-    awful.key( { modkey, "Control" }, "j",      function () awful.screen.focus_relative( 1)   end, { group = "screen", description = "focus the next screen" } ),
-    awful.key( { modkey, "Control" }, "k",      function () awful.screen.focus_relative(-1)   end, { group = "screen", description = "focus the previous screen" } ),
+    awful.key( { MOD            }, "s",                  hotkeys_popup.show_help,                 { group = "awesome",  description = "show help" } ),
+    awful.key( { MOD, "Control" }, "r",                  awesome.restart,                         { group = "awesome",  description = "reload awesome" } ),
+    awful.key( { MOD, "Shift"   }, "q",                  awesome.quit,                            { group = "awesome",  description = "quit awesome" } ),
+    awful.key( { MOD, "Control" }, "s",     function ()  awful.util.spawn("xrandr -s 0")     end, { group = "system",  description = "reset screens" } ),
+    awful.key( { MOD,           }, "6",     function ()  fSetVol("0",   "0")                 end, { group = "system",  description = "set volumen 0%" } ),
+    awful.key( { MOD,           }, "7",     function ()  fSetVol("60", "25")                 end, { group = "system",  description = "set volumen 25%" } ),
+    awful.key( { MOD,           }, "8",     function ()  fSetVol("70", "50")                 end, { group = "system",  description = "set volumen 50%" } ),
+    awful.key( { MOD,           }, "9",     function ()  fSetVol("80", "75")                 end, { group = "system",  description = "set volumen 75%" } ),
+    awful.key( { MOD,           }, "0",     function ()  fSetVol("90","100")                 end, { group = "system",  description = "set volumen 100%" } ),
+    awful.key( { MOD,           }, "Left",               awful.tag.viewprev,                      { group = "tag",      description = "view previous" } ),
+    awful.key( { MOD,           }, "Right",              awful.tag.viewnext,                      { group = "tag",      description = "view next" } ),
+    awful.key( { MOD,           }, "Escape",             awful.tag.history.restore,               { group = "tag",      description = "go back" } ),
+    awful.key( { MOD,           }, "Return", function () awful.spawn(terminal)               end, { group = "launcher", description = "run terminal" } ),
+    awful.key( { MOD,           }, "w",      function () awful.spawn(browser)                end, { group = "launcher", description = "run browser" } ),
+    awful.key( { MOD,           }, "e",      function () awful.spawn(editor)                 end, { group = "launcher", description = "run editor" } ),
+    awful.key( { MOD,           }, "r",                  fRofi,                                   { group = "launcher", description = "run" } ),
+    awful.key( { MOD,           }, "p",      function () menubar.show()                      end, { group = "launcher", description = "show the menubar" } ),
+    awful.key( { MOD,           }, "j",      function () awful.client.focus.byidx( 1)      end, { group = "client", description = "focus next by index" } ),
+    awful.key( { MOD,           }, "k",      function () awful.client.focus.byidx(-1)      end, { group = "client", description = "focus previous by index" } ),
+    awful.key( { MOD, "Shift"   }, "j",      function () awful.client.swap.byidx( 1)       end, { group = "client", description = "swap with next client by index" } ),
+    awful.key( { MOD, "Shift"   }, "k",      function () awful.client.swap.byidx(-1)       end, { group = "client", description = "swap with previous client by index" } ),
+    awful.key( { MOD, "Control" }, "j",      function () awful.screen.focus_relative( 1)   end, { group = "screen", description = "focus the next screen" } ),
+    awful.key( { MOD, "Control" }, "k",      function () awful.screen.focus_relative(-1)   end, { group = "screen", description = "focus the previous screen" } ),
     -- Standard program
-    awful.key( { modkey,           }, "[",      function () useless_gaps_resize(-3)             end, {description = "increment useless gaps", group = "tag"}),
-    awful.key( { modkey,           }, "]",      function () useless_gaps_resize( 3)              end, {description = "decrement useless gaps", group = "tag"}),
-    awful.key( { modkey, "Control" }, "[",      function () useless_margin_resize(-3)           end, {description = "increment useless margins", group = "tag"}),
-    awful.key( { modkey, "Control" }, "]",      function () useless_margin_resize( 3)            end, {description = "decrement useless margins", group = "tag"}),
-    awful.key( { modkey,           }, "l",      function () awful.tag.incmwfact( 0.05)          end, { group = "layout", description = "increase master width factor" } ),
-    awful.key( { modkey,           }, "h",      function () awful.tag.incmwfact(-0.05)          end, { group = "layout", description = "decrease master width factor" } ),
-    awful.key( { modkey, "Shift"   }, "h",      function () awful.tag.incnmaster( 1, nil, true) end, { group = "layout", description = "increase the number of master clients" } ),
-    awful.key( { modkey, "Shift"   }, "l",      function () awful.tag.incnmaster(-1, nil, true) end, { group = "layout", description = "decrease the number of master clients" } ),
-    awful.key( { modkey, "Control" }, "h",      function () awful.tag.incncol( 1, nil, true)    end, { group = "layout", description = "increase the number of columns" } ),
-    awful.key( { modkey, "Control" }, "l",      function () awful.tag.incncol(-1, nil, true)    end, { group = "layout", description = "decrease the number of columns" } ),
-    awful.key( { modkey,           }, "space",  function () awful.layout.inc( 1)                end, { group = "layout", description = "select next" } ),
-    awful.key( { modkey, "Shift"   }, "space",  function () awful.layout.inc(-1)                end, { group = "layout", description = "select previous" } ),
-    awful.key( { modkey,           }, "b",                  fWiboxH,                                 { group = "layout", description = "show/hide top bar" } ),
-    awful.key( { modkey,           }, "u",                  awful.client.urgent.jumpto,              { group = "client", description = "jump to urgent client" } ),
-    awful.key( { modkey,           }, "Tab",                fPrev,                                   { group = "client", description = "go back" } )
+    awful.key( { MOD,           }, "[",      function () useless_gaps_resize(-3)             end, {description = "increment useless gaps", group = "tag"}),
+    awful.key( { MOD,           }, "]",      function () useless_gaps_resize( 3)              end, {description = "decrement useless gaps", group = "tag"}),
+    awful.key( { MOD, "Control" }, "[",      function () useless_margin_resize(-3)           end, {description = "increment useless margins", group = "tag"}),
+    awful.key( { MOD, "Control" }, "]",      function () useless_margin_resize( 3)            end, {description = "decrement useless margins", group = "tag"}),
+    awful.key( { MOD,           }, "l",      function () awful.tag.incmwfact( 0.05)          end, { group = "layout", description = "increase master width factor" } ),
+    awful.key( { MOD,           }, "h",      function () awful.tag.incmwfact(-0.05)          end, { group = "layout", description = "decrease master width factor" } ),
+    awful.key( { MOD, "Shift"   }, "h",      function () awful.tag.incnmaster( 1, nil, true) end, { group = "layout", description = "increase the number of master clients" } ),
+    awful.key( { MOD, "Shift"   }, "l",      function () awful.tag.incnmaster(-1, nil, true) end, { group = "layout", description = "decrease the number of master clients" } ),
+    awful.key( { MOD, "Control" }, "h",      function () awful.tag.incncol( 1, nil, true)    end, { group = "layout", description = "increase the number of columns" } ),
+    awful.key( { MOD, "Control" }, "l",      function () awful.tag.incncol(-1, nil, true)    end, { group = "layout", description = "decrease the number of columns" } ),
+    awful.key( { MOD,           }, "space",  function () awful.layout.inc( 1)                end, { group = "layout", description = "select next" } ),
+    awful.key( { MOD, "Shift"   }, "space",  function () awful.layout.inc(-1)                end, { group = "layout", description = "select previous" } ),
+    awful.key( { MOD,           }, "b",                  fWiboxH,                                 { group = "layout", description = "show/hide top bar" } ),
+    awful.key( { MOD,           }, "u",                  awful.client.urgent.jumpto,              { group = "client", description = "jump to urgent client" } ),
+    awful.key( { MOD,           }, "Tab",                fPrev,                                   { group = "client", description = "go back" } )
 )
 
 for i = 1, 5 do
     globalkeys = gears.table.join(
         globalkeys,
-        awful.key( { modkey,                    }, "#" .. i + 9, fTagOnly(i),         { group = "tag", description = "view tag #" .. i } ),
-        awful.key( { modkey, "Control"          }, "#" .. i + 9, fTagDisplay(i),      { group = "tag", description = "toggle tag #" .. i } ),
-        awful.key( { modkey, "Control", "Shift" }, "#" .. i + 9, fClientTagToggle(i), { group = "tag", description = "toggle focused client on tag #" .. i } ),
-        awful.key( { modkey, "Shift"            }, "#" .. i + 9, fClientMove(i),      { group = "tag", description = "move focused client to tag #" .. i } )
+        awful.key( { MOD,                    }, "#" .. i + 9, fTagOnly(i),         { group = "tag", description = "view tag #" .. i } ),
+        awful.key( { MOD, "Control"          }, "#" .. i + 9, fTagDisplay(i),      { group = "tag", description = "toggle tag #" .. i } ),
+        awful.key( { MOD, "Control", "Shift" }, "#" .. i + 9, fClientTagToggle(i), { group = "tag", description = "toggle focused client on tag #" .. i } ),
+        awful.key( { MOD, "Shift"            }, "#" .. i + 9, fClientMove(i),      { group = "tag", description = "move focused client to tag #" .. i } )
     )
 end
 
 clientkeys = gears.table.join(
-    awful.key( { modkey,           }, "f",                   fFullS,                               { group = "client", description = "toggle fullscreen" } ),
-    awful.key( { modkey,           }, "m",                   fMaxm,                                { group = "client", description = "(un)maximize" } ),
-    awful.key( { modkey, "Shift"   }, "c",      function (c) c:kill()                         end, { group = "client", description = "close" } ),
-    awful.key( { modkey, "Control" }, "space",               awful.client.floating.toggle,         { group = "client", description = "toggle floating" } ),
-    awful.key( { modkey, "Control" }, "Return", function (c) c:swap(awful.client.getmaster()) end, { group = "client", description = "move to master" } ),
-    awful.key( { modkey,           }, "o",      function (c) c:move_to_screen()               end, { group = "client", description = "move to screen" } ),
-    awful.key( { modkey,           }, "t",      function (c) c.ontop = not c.ontop            end, { group = "client", description = "toggle keep on top" } )
+    awful.key( { MOD,           }, "f",                   fFullS,                               { group = "client", description = "toggle fullscreen" } ),
+    awful.key( { MOD,           }, "m",                   fMaxm,                                { group = "client", description = "(un)maximize" } ),
+    awful.key( { MOD, "Shift"   }, "c",      function (c) c:kill()                         end, { group = "client", description = "close" } ),
+    awful.key( { MOD, "Control" }, "space",               awful.client.floating.toggle,         { group = "client", description = "toggle floating" } ),
+    awful.key( { MOD, "Control" }, "Return", function (c) c:swap(awful.client.getmaster()) end, { group = "client", description = "move to master" } ),
+    awful.key( { MOD,           }, "o",      function (c) c:move_to_screen()               end, { group = "client", description = "move to screen" } ),
+    awful.key( { MOD,           }, "t",      function (c) c.ontop = not c.ontop            end, { group = "client", description = "toggle keep on top" } )
 )
 
 
 clientbuttons = gears.table.join(
     awful.button( {        }, 1, function (c) c:emit_signal( "request::activate", "mouse_click", { raise = true } )                              end ),
-    awful.button( { modkey }, 1, function (c) c:emit_signal( "request::activate", "mouse_click", { raise = true } ) awful.mouse.client.move(c)   end ),
-    awful.button( { modkey }, 3, function (c) c:emit_signal( "request::activate", "mouse_click", { raise = true } ) awful.mouse.client.resize(c) end )
+    awful.button( { MOD }, 1, function (c) c:emit_signal( "request::activate", "mouse_click", { raise = true } ) awful.mouse.client.move(c)   end ),
+    awful.button( { MOD }, 3, function (c) c:emit_signal( "request::activate", "mouse_click", { raise = true } ) awful.mouse.client.resize(c) end )
 )
 
 -- Set keys
