@@ -23,10 +23,10 @@ end
 
 function useless_gaps_resize(amount)
     local scr = awful.screen.focused()
-    local d = dpi(amount)
+    local x = dpi(amount)
 
     for key, tag in pairs(scr.tags) do
-        tag.gap = tag.gap + d
+        tag.gap = tag.gap + x
     end
 
     awful.layout.arrange(scr)
@@ -34,15 +34,10 @@ end
 
 function useless_margin_resize(amount)
     local scr = awful.screen.focused()
-    local d = dpi(amount)
+    local x = scr.padding.left + dpi(amount)
 
-    if scr.padding.left + d >= 0 then
-        scr.padding = {
-            left   = scr.padding.left + d,
-            right  = scr.padding.right + d,
-            top    = scr.padding.top + d,
-            bottom = scr.padding.bottom + d
-        }
+    if x >= 0 then
+        scr.padding = { left = x, right = x, top = x, bottom = x }
     end
 end
 
