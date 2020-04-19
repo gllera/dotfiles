@@ -4,5 +4,6 @@
 /menus
 /Code
 /vlc
+/configstore
 .*
 !.gitignore
