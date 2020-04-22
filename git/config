@@ -4,4 +4,8 @@
 [credential]
 	helper = store
 [core]
-	pager = diff-so-fancy | less --tabs=4 -RFX
+	pager = delta
+[diff]
+	tool = vimdiff3
+[merge]
+	tool = vimdiff3

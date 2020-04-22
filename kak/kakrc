@@ -1,0 +1,26 @@
+#------- Basic stuf -------#
+set global tabstop     4
+set global indentwidth 4
+set global startup_info_version 20200413
+set global ui_options ncurses_assistant=none
+set global autocomplete insert
+
+#------- Hooks -------#
+hook global InsertChar \t "exec -draft h@"
+
+
+#------- Maps -------#
+map global normal <c-s> ':w<ret>'            -docstring 'save file'
+map global normal <c-q> ':db;q<ret>'         -docstring 'exit'
+map global normal '#'   ':comment-line<ret>' -docstring 'comment/uncomment'
+
+# Clipboard
+map global user p '!xsel -bo<ret>uU'   -docstring 'paste from clipboard'
+map global user y '<a-|>xsel -bi<ret>' -docstring 'copy to clipboard' 
+map global user d '|xsel -bi<ret>'     -docstring 'cut to clipboard'
+
+# Toggles
+map global user n ':toggle-highlighter global/tNL number-lines -relative<ret>' -docstring 'toggle line numbers'
+map global user w ':toggle-highlighter global/tWR wrap -word<ret>'             -docstring 'toggle word wrap'
+
+colorscheme gabox
