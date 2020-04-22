@@ -1,0 +1,28 @@
+#!/bin/bash
+
+CLIENT=main
+SESSION=main
+JOB=run
+
+while getopts "c:s:k" opt; do
+    case ${opt} in
+        c) CLIENT=$OPTARG;;
+        s) SESSION=$OPTARG;;
+        k) JOB=kill;;
+        d) JOB=daemon;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+kak -l | grep -qw $SESSION
+DAEMON_STOPPED=$?
+
+case $JOB in
+    run)
+        ((DAEMON_STOPPED)) && kak -d -s $SESSION > /dev/null 2>&1
+        
+        exec kak -c $SESSION -e "try 'rename-client $CLIENT'" $@
+        ;;
+    kill) echo kill | kak -p $SESSION 2>/dev/null ;;
+esac
