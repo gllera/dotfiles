@@ -5,5 +5,9 @@
 /Code
 /vlc
 /configstore
+
+/jesseduffield/lazygit/state.yml
+
 .*
 !.gitignore
+
