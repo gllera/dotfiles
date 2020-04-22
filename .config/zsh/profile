@@ -1,0 +1,56 @@
+#!/bin/zsh
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+
+
+#### Configs
+# Basics
+export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
+
+path+=("$HOME/.local/bin")
+export PATH
+
+# Zsh
+HISTFILE="$XDG_CACHE_HOME/zsh_history"
+
+# Zsh - prompt
+PROMPT='%{$fg_bold[blue]%}%n@%m%{$reset_color%} %{$fg[green]%}%(!.%1~.%~) $(git_prompt_info)%{$reset_color%}$ '
+ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[yellow]%}("
+ZSH_THEME_GIT_PROMPT_SUFFIX=") "
+
+# Zsh - antigen
+ADOTDIR=$XDG_CACHE_HOME/antigen
+source $XDG_CONFIG_HOME/zsh/antigen.zsh
+antigen use oh-my-zsh
+
+antigen bundle git
+antigen bundle gitfast
+antigen bundle git-extras
+antigen bundle zsh-users/zsh-autosuggestions
+
+antigen apply
+
+# NNN
+export NNN_OPENER=${NNN_OPENER:-scope}
+export GUI=1
+
+
+
+#### Aliases
+# Basics
+alias   ls='ls --color=auto'
+
+# Windows
+alias    n='nnn -cod'
+alias tmux='tmux -f $XDG_CONFIG_HOME/tmux/tmux.conf'
+
+# Editor
+alias   kk='kak-launcher'
+alias  kkf='kak-launcher -k'
+
+# Configs
+alias   hh='GIT_DIR=$HOME/.cfg/ GIT_WORK_TREE=$HOME'
+
