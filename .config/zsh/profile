@@ -16,22 +16,21 @@ export PATH
 # Zsh
 HISTFILE="$XDG_CACHE_HOME/zsh_history"
 
-# Zsh - prompt
-PROMPT='%{$fg_bold[blue]%}%n@%m%{$reset_color%} %{$fg[green]%}%(!.%1~.%~) $(git_prompt_info)%{$reset_color%}$ '
-ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[yellow]%}("
-ZSH_THEME_GIT_PROMPT_SUFFIX=") "
-
 # Zsh - antigen
 ADOTDIR=$XDG_CACHE_HOME/antigen
 source $XDG_CONFIG_HOME/zsh/antigen.zsh
 antigen use oh-my-zsh
 
 antigen bundle git
-antigen bundle gitfast
-antigen bundle git-extras
 antigen bundle zsh-users/zsh-autosuggestions
 
-antigen apply
+antigen apply 2>/dev/null
+
+# Zsh - prompt
+PROMPT='%{$fg_bold[blue]%}%n@%m%{$reset_color%} %{$fg[green]%}%(!.%1~.%~) $(git_prompt_info)%{$reset_color%}$ '
+ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[yellow]%}("
+ZSH_THEME_GIT_PROMPT_SUFFIX=") "
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=yellow"
 
 # NNN
 export NNN_OPENER=${NNN_OPENER:-scope}
