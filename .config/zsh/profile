@@ -13,34 +13,96 @@ export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 path+=("$HOME/.local/bin")
 export PATH
 
-# Zsh
-HISTFILE="$XDG_CACHE_HOME/zsh_history"
-
-# Zsh - antigen
-ADOTDIR=$XDG_CACHE_HOME/antigen
-source $XDG_CONFIG_HOME/zsh/antigen.zsh
-antigen use oh-my-zsh
-
-antigen bundle git
-antigen bundle zsh-users/zsh-autosuggestions
-
-antigen apply 2>/dev/null
-
-# Zsh - prompt
-PROMPT='%{$fg_bold[blue]%}%n@%m%{$reset_color%} %{$fg[green]%}%(!.%1~.%~) $(git_prompt_info)%{$reset_color%}$ '
-ZSH_THEME_GIT_PROMPT_PREFIX="%{$fg[yellow]%}("
-ZSH_THEME_GIT_PROMPT_SUFFIX=") "
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=yellow"
-
-# NNN
+# nnn
 export NNN_OPENER=${NNN_OPENER:-scope}
 export GUI=1
+
+
+
+#### Zsh
+# History
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE="$XDG_CACHE_HOME/zsh_history"
+
+# Prompt
+setopt PROMPT_SUBST
+autoload -U colors && colors
+PROMPT="%{$reset_color$fg[blue]%}%n@%m%{$fg[green]%} %(!.%1~.%~) \$(prompt_git_status)%{$reset_color%}$ "
+
+prompt_git_status() {
+    local BRANCH="$( git rev-parse --abbrev-ref HEAD 2>/dev/null )"
+    
+    if [[ -n "$BRANCH" ]]; then
+        local STATUS="%{$fg[yellow]%}"
+        git diff --quiet --ignore-submodules HEAD 2>/dev/null || STATUS="%{$fg[red]%}"
+        printf '%b' "${STATUS}(${BRANCH}) "
+    fi
+}
+
+# Plugins
+fzf-history-widget() {
+    local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --query=${LBUFFER} )
+    [[ -n "$RES" ]] && BUFFER="$RES" && zle end-of-line
+    zle reset-prompt
+}
+zle -N fzf-history-widget
+
+fzf-files-widget() {
+    local RES=$( fd -HI | fzf --height=11 --info=hidden --reverse --query="" )
+    LBUFFER="$LBUFFER$RES"
+    zle reset-prompt
+}
+zle -N fzf-files-widget
+
+# Bindings
+bindkey '^[[1~' beginning-of-line    # Home(1)
+bindkey '^[[7~' beginning-of-line    # Home(2)
+bindkey '^[[4~' end-of-line          # End(1)
+bindkey '^[[8~' end-of-line          # End(2)
+bindkey '^[[A'  up-line-or-search    # Up
+bindkey '^[[B'  down-line-or-search  # Down
+
+bindkey '^R'    fzf-history-widget
+bindkey '^F'    fzf-files-widget
+
+# Others
+stty stop undef       # Disable ctrl-s to freeze terminal.
 
 
 
 #### Aliases
 # Basics
 alias   ls='ls --color=auto'
+alias   ll='ls -lh'
+alias   la='ls -lha'
+
+# Git
+alias    g='git'
+alias   ga='git add'
+alias  gaa='git add --all'
+alias   gc='git commit -v -m'
+alias  gc!='git commit -v --no-edit --amend'
+alias  gca='git commit -v -a -m'
+alias gca!='git commit -v -a --no-edit --amend'
+alias  gco='git checkout'
+alias  gcm='git checkout master'
+alias   gd='git diff'
+alias  gdc='git diff --cached'
+alias  gds='git diff --staged'
+alias   gf='git fetch'
+alias  gfa='git fetch --all --prune'
+alias  gcf='git config --list'
+alias  glo="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'"
+alias   gb='git branch'
+alias   gm='git merge'
+alias   gp='git push'
+alias   gl='git pull'
+alias  grh='git reset'
+alias grhh='git reset --hard'
+alias  gst='git status'
+alias  grb='git rebase'
+alias  gsh='git show'
 
 # Windows
 alias    n='nnn -cod'
