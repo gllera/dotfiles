@@ -58,9 +58,7 @@ zle -N fzf-files-widget
 
 # Bindings
 bindkey '^[[1~' beginning-of-line    # Home(1)
-bindkey '^[[7~' beginning-of-line    # Home(2)
 bindkey '^[[4~' end-of-line          # End(1)
-bindkey '^[[8~' end-of-line          # End(2)
 bindkey '^[[A'  up-line-or-search    # Up
 bindkey '^[[B'  down-line-or-search  # Down
 
