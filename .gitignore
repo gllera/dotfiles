@@ -5,6 +5,8 @@
 /Code
 /vlc
 /configstore
+/docker
+/systemd/user/default.target.wants
 
 /jesseduffield/lazygit/state.yml
 
