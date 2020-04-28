@@ -5,8 +5,12 @@ set global startup_info_version 20200413
 set global ui_options ncurses_assistant=none
 set global autocomplete insert
 
+
+
 #------- Hooks -------#
 hook global InsertChar \t "exec -draft h@"
+hook global ClientClose main "kill"
+
 
 
 #------- Maps -------#

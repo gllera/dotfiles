@@ -24,5 +24,8 @@ case $JOB in
         
         exec kak -c $SESSION -e "try 'rename-client $CLIENT'" $@
         ;;
-    kill) echo kill | kak -p $SESSION 2>/dev/null ;;
+    kill)
+        echo kill | kak -p $SESSION 2>/dev/null
+        kak -clear
+        ;;
 esac
