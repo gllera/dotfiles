@@ -18,7 +18,7 @@ alias y='yay --nodiffmenu'
 
 #### Ending
 # Common
-source ~/.config/zsh/profile
+source ~/.config/zsh/zshrc
 
 # Xorg
 [[ -z "$DISPLAY" ]] && [[ "$(tty)" == "/dev/tty1" ]] && exec startx

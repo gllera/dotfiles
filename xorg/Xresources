@@ -68,10 +68,10 @@ URxvt.keysym.Control-Meta-v: builtin-string:
 !URxvt.keysym.Down            : \033[B  !breaks arrow keys in Vim
 !URxvt.keysym.Right           : \033[C  !breaks arrow keys in Vim
 !URxvt.keysym.Left            : \033[D  !breaks arrow keys in Vim
-URxvt.keysym.Home             : \033[1~
-URxvt.keysym.End              : \033[4~
-URxvt.keysym.Page_Up          : \033[5~
-URxvt.keysym.Page_Down        : \033[6~
+!URxvt.keysym.Home            : \033[1~ !breaks navigation in Vim
+!URxvt.keysym.End             : \033[4~ !breaks navigation in Vim
+!URxvt.keysym.Page_Up         : \033[5~ !breaks scrolling in Rxvt
+!URxvt.keysym.Page_Down       : \033[6~ !breaks scrolling in Rxvt
 URxvt.keysym.S-Up             : \033[1;2A
 URxvt.keysym.S-Down           : \033[1;2B
 URxvt.keysym.S-Right          : \033[1;2C
