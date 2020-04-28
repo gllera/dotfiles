@@ -57,10 +57,25 @@ fzf-files-widget() {
 zle -N fzf-files-widget
 
 # Bindings
-bindkey '^[[1~' beginning-of-line    # Home(1)
-bindkey '^[[4~' end-of-line          # End(1)
-bindkey '^[[A'  up-line-or-search    # Up
-bindkey '^[[B'  down-line-or-search  # Down
+typeset -A key
+key=(
+    BackSpace  "${terminfo[kbs]}"
+    Home       "${terminfo[khome]}"
+    End        "${terminfo[kend]}"
+    Insert     "${terminfo[kich1]}"
+    Delete     "${terminfo[kdch1]}"
+    Up         "${terminfo[kcuu1]}"
+    Down       "${terminfo[kcud1]}"
+    Left       "${terminfo[kcub1]}"
+    Right      "${terminfo[kcuf1]}"
+    PageUp     "${terminfo[kpp]}"
+    PageDown   "${terminfo[knp]}"
+)
+
+bindkey "${key[Home]}" beginning-of-line
+bindkey "${key[End]}"  end-of-line
+bindkey "${key[Up]}"   up-line-or-search
+bindkey "${key[Down]}" down-line-or-search
 
 bindkey '^R'    fzf-history-widget
 bindkey '^F'    fzf-files-widget
