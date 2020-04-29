@@ -139,21 +139,15 @@ mode "mode_resize" {
         bindsym Right exec i3resize right
 }
 
-set $mode_system System (s) suspend, (r) reboot, (Shift+s) shutdown
+set $mode_system System (s) suspend, (r) reboot, (q) shutdown, (c) i3 reload, (i) i3 restart, (e) i3 exit 
 bindsym $mod+Escape mode "$mode_system"
 mode "$mode_system" {
     bindsym Escape mode "default"
-    bindsym s       exec systemctl suspend, mode "default"
-    bindsym r       exec systemctl reboot
-    bindsym Shift+s exec systemctl poweroff -i
-}
-
-set $mode_i3 i3 (c) reconfigure, (r) restart, (e) exit
-bindsym $mod+i mode "$mode_i3"
-mode "$mode_i3" {
-    bindsym Escape mode "default"
+    bindsym s exec systemctl suspend, mode "default"
+    bindsym r exec systemctl reboot
+    bindsym q exec systemctl poweroff -i
     bindsym c reload
-    bindsym r restart
+    bindsym i restart
     bindsym e exit
 }
 
