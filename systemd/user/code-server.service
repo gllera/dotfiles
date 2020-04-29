@@ -1,0 +1,10 @@
+[Unit]
+Description=VSCode Server
+
+[Service]
+ExecStart=/bin/sh -c 'exec code-server --port 1$(id -u) --auth none --disable-ssh'
+Restart=always
+Type=simple
+
+[Install]
+WantedBy=default.target
