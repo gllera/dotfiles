@@ -5,6 +5,29 @@ set global startup_info_version 20200413
 set global ui_options ncurses_assistant=none
 set global autocomplete insert
 
+colorscheme gabox
+
+
+
+#------- Functions -------#
+def toggle-highlighter -params 2.. %{
+    try %{
+        add-highlighter %arg{@}
+        echo -markup "{green}add-highlighter %arg{@}{Default}"
+    } catch %{
+        remove-highlighter %arg{1}
+        echo -markup "{red}remove-highlighter %arg{1}{Default}"
+    }
+}
+
+def reuse-create-client -params 2 %{
+    try %{
+        eval -client %arg{1} edit %arg{2}
+    } catch %{
+        new "rename-client %arg{1}; edit %arg{2}"
+    }
+}
+
 
 
 #------- Hooks -------#
@@ -26,5 +49,3 @@ map global user d '|xsel -bi<ret>'     -docstring 'cut to clipboard'
 # Toggles
 map global user n ':toggle-highlighter global/tNL number-lines -relative<ret>' -docstring 'toggle line numbers'
 map global user w ':toggle-highlighter global/tWR wrap -word<ret>'             -docstring 'toggle word wrap'
-
-colorscheme gabox

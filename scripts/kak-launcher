@@ -4,25 +4,27 @@ CLIENT=main
 SESSION=main
 JOB=run
 
-while getopts "c:s:k" opt; do
+while getopts "c:s:kdr" opt; do
     case ${opt} in
-        c) CLIENT=$OPTARG;;
-        s) SESSION=$OPTARG;;
-        k) JOB=kill;;
-        d) JOB=daemon;;
+        c) CLIENT=$OPTARG  ;;
+        s) SESSION=$OPTARG ;;
+        k) JOB=kill        ;;
+        d) JOB=daemon      ;;
+        r) JOB=reuse       ;;
     esac
 done
 
 shift $((OPTIND-1))
 
-kak -l | grep -qw $SESSION
-DAEMON_STOPPED=$?
-
 case $JOB in
+    run | reuse | daemon)
+        kak -d -s $SESSION &> /dev/null
+        ;;&
     run)
-        ((DAEMON_STOPPED)) && kak -d -s $SESSION > /dev/null 2>&1
-        
         exec kak -c $SESSION -e "try 'rename-client $CLIENT'" $@
+        ;;
+    reuse)
+        echo "reuse-create-client $CLIENT '$(realpath $1)'" | kak -p $SESSION
         ;;
     kill)
         echo kill | kak -p $SESSION 2>/dev/null
