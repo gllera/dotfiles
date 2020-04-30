@@ -10,9 +10,12 @@
 export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 
-path+=("$XDG_CONFIG_HOME/scripts")
-path+=("$HOME/.local/bin")
-export PATH
+typeset -gxU path=(
+    "."
+    "$path[@]"
+    "$XDG_CONFIG_HOME/scripts"
+    "$HOME/.local/bin"
+)
 
 # nnn
 export NNN_OPENER=${NNN_OPENER:-scope}
