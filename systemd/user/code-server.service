@@ -2,7 +2,7 @@
 Description=VSCode Server
 
 [Service]
-ExecStart=/bin/sh -c 'exec code-server --port 1$(id -u) --auth none --disable-ssh'
+ExecStart=/bin/sh -c 'exec code-server --bind-addr localhost:1$(id -u) --auth none --disable-updates'
 Restart=always
 Type=simple
 
