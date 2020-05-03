@@ -64,10 +64,10 @@ URxvt.keysym.Control-Meta-v: builtin-string:
 
 ! emulate XTerm for proper recognition of key combinations in Vim http://vim.wikia.com/wiki/Get_Alt_key_to_work_in_terminal
 
-!URxvt.keysym.Up              : \033[A  !breaks arrow keys in Vim
-!URxvt.keysym.Down            : \033[B  !breaks arrow keys in Vim
-!URxvt.keysym.Right           : \033[C  !breaks arrow keys in Vim
-!URxvt.keysym.Left            : \033[D  !breaks arrow keys in Vim
+URxvt.keysym.Up               : \033[A
+URxvt.keysym.Down             : \033[B
+URxvt.keysym.Right            : \033[C
+URxvt.keysym.Left             : \033[D
 !URxvt.keysym.Home            : \033[1~ !breaks navigation in Vim
 !URxvt.keysym.End             : \033[4~ !breaks navigation in Vim
 !URxvt.keysym.Page_Up         : \033[5~ !breaks scrolling in Rxvt
