@@ -1,2 +1,14 @@
 remove control = Control_R
+remove mod1 = Alt_R
+
 add Mod3 = Control_R
+
+keycode  38 = a A aacute Aacute ae AE ae
+keycode  26 = e E eacute Eacute EuroSign cent EuroSign
+keycode  31 = i I iacute Iacute rightarrow idotless rightarrow
+keycode  32 = o O oacute Oacute oslash Oslash oslash
+keycode  30 = u U uacute Uacute downarrow uparrow downarrow
+keycode  57 = n N ntilde Ntilde n N n
+
+!Maps the Mode key to the Alt_R key
+keycode 108 = Mode_switch
