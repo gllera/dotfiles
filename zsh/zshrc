@@ -31,7 +31,11 @@ HISTFILE="$XDG_CACHE_HOME/zsh_history"
 
 # Prompt
 setopt PROMPT_SUBST
-autoload -U colors && colors
+autoload -U colors select-word-style
+
+colors
+select-word-style bash
+
 PROMPT="%{$reset_color$fg[blue]%}%n@%m%{$fg[green]%} %(!.%1~.%~) \$(prompt_git_status)%{$reset_color%}$ "
 
 prompt_git_status() {
