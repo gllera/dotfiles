@@ -7,6 +7,12 @@
 /configstore
 /docker
 /systemd/user/default.target.wants
+/pulse
+/cmus
+/balena-etcher-electron
+/easytag
+/gtk-2.0
+/autorandr
 
 /jesseduffield/lazygit/state.yml
 
