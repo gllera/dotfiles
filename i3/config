@@ -32,10 +32,6 @@ exec --no-startup-id feh --no-fehbg --bg-fill ~/.cache/wallpaper
 # Sound
 exec --no-startup-id amixer sset Master 90%
 
-# Startup apps
-exec --no-startup-id i3-msg 'workspace 2; exec $TERMINAL'
-exec --no-startup-id i3-msg 'workspace 1; exec $BROWSER'
-
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
@@ -166,8 +162,6 @@ default_floating_border pixel
 # gaps
 smart_borders no_gaps
 
-workspace 2 gaps outer 15
-workspace 2 gaps inner 15
 bindsym $mod+bracketleft        gaps inner current plus 15
 bindsym $mod+bracketright       gaps inner current minus 15
 bindsym $mod+Shift+bracketleft  gaps outer current plus 15
