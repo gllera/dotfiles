@@ -18,7 +18,7 @@ shift $((OPTIND-1))
 
 case $JOB in
     run | reuse | daemon)
-        kak -d -s $SESSION &> /dev/null
+        kak -d -s $SESSION &> /dev/null &
         ;;&
     run)
         exec kak -c $SESSION -e "try 'rename-client $CLIENT'" $@
