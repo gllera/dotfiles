@@ -11,11 +11,13 @@ export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 
 typeset -gxU path=(
-    "."
-    "$path[@]"
-    "$XDG_CONFIG_HOME/scripts"
-    "$HOME/.local/bin"
+   "."
+   "$path[@]"
+   "$XDG_CONFIG_HOME/scripts"
+   "$HOME/.local/bin"
 )
+
+
 
 # nnn
 export NNN_OPENER=${NNN_OPENER:-scope}
@@ -32,52 +34,51 @@ HISTFILE="$XDG_CACHE_HOME/zsh_history"
 # Prompt
 setopt PROMPT_SUBST
 setopt INC_APPEND_HISTORY
-autoload -U colors select-word-style
+autoload -U select-word-style
 
-colors
 select-word-style bash
 
-PROMPT="%{$reset_color$fg[blue]%}%n@%m%{$fg[green]%} %(!.%1~.%~) \$(prompt_git_status)%{$reset_color%}$ "
+PROMPT="%F{blue}%n@%m %F{green}%~ \$(prompt_git_status)%f$ "
 
 prompt_git_status() {
-    local BRANCH="$( git rev-parse --abbrev-ref HEAD 2>/dev/null )"
+   local BRANCH="$( git rev-parse --abbrev-ref HEAD 2>/dev/null )"
+   local STATUS="%F{yellow}"
     
-    if [[ -n "$BRANCH" ]]; then
-        local STATUS="%{$fg[yellow]%}"
-        git diff --quiet --ignore-submodules HEAD 2>/dev/null || STATUS="%{$fg[red]%}"
-        printf '%b' "${STATUS}(${BRANCH}) "
-    fi
+   if [[ -n "$BRANCH" ]]; then
+      git diff --quiet --ignore-submodules HEAD 2>/dev/null || STATUS="%F{red}"
+      printf '%b' "$STATUS($BRANCH) "
+   fi
 }
 
 # Plugins
 fzf-history-widget() {
-    local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --query=${LBUFFER} )
-    [[ -n "$RES" ]] && BUFFER="$RES" && zle end-of-line
-    zle reset-prompt
+   local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --query=${LBUFFER} )
+   [[ -n "$RES" ]] && BUFFER="$RES" && zle end-of-line
+   zle reset-prompt
 }
 zle -N fzf-history-widget
 
 fzf-files-widget() {
-    local RES=$( fd -HI | fzf --height=11 --info=hidden --reverse --query="" )
-    LBUFFER="$LBUFFER$RES"
-    zle reset-prompt
+   local RES=$( fd -HI | fzf --height=11 --info=hidden --reverse --query="" )
+   LBUFFER="$LBUFFER$RES"
+   zle reset-prompt
 }
 zle -N fzf-files-widget
 
 # Bindings
 typeset -A key
 key=(
-    BackSpace  "${terminfo[kbs]}"
-    Home       "${terminfo[khome]}"
-    End        "${terminfo[kend]}"
-    Insert     "${terminfo[kich1]}"
-    Delete     "${terminfo[kdch1]}"
-    Up         "${terminfo[kcuu1]}"
-    Down       "${terminfo[kcud1]}"
-    Left       "${terminfo[kcub1]}"
-    Right      "${terminfo[kcuf1]}"
-    PageUp     "${terminfo[kpp]}"
-    PageDown   "${terminfo[knp]}"
+   BackSpace  "${terminfo[kbs]}"
+   Home       "${terminfo[khome]}"
+   End        "${terminfo[kend]}"
+   Insert     "${terminfo[kich1]}"
+   Delete     "${terminfo[kdch1]}"
+   Up         "${terminfo[kcuu1]}"
+   Down       "${terminfo[kcud1]}"
+   Left       "${terminfo[kcub1]}"
+   Right      "${terminfo[kcuf1]}"
+   PageUp     "${terminfo[kpp]}"
+   PageDown   "${terminfo[knp]}"
 )
 
 bindkey "${key[Delete]}" delete-char
@@ -88,8 +89,8 @@ bindkey "^[[A"           up-line-or-search
 bindkey "${key[Down]}"   down-line-or-search
 bindkey "^[[B"           down-line-or-search
 
-bindkey '^R'    fzf-history-widget
-bindkey '^F'    fzf-files-widget
+bindkey '^R'             fzf-history-widget
+bindkey '^F'             fzf-files-widget
 
 # Others
 stty stop undef       # Disable ctrl-s to freeze terminal.
@@ -144,3 +145,8 @@ alias   k1='kak-launcher -c1'
 # Configs
 alias   hh='GIT_DIR=$HOME/.cfg/ GIT_WORK_TREE=$HOME'
 
+
+ide() {
+   hash -d $(basename $PWD)=$PWD
+   PROMPT="%F{green}%~ \$(prompt_git_status)%f$ "
+}
