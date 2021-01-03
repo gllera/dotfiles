@@ -135,7 +135,9 @@ alias tmux='tmux -f $XDG_CONFIG_HOME/tmux/tmux.conf'
 
 # Editor
 alias   kk='kak-launcher'
-alias  kkf='kak-launcher -k'
+alias   kq='kak-launcher -q'
+alias   k0='kak-launcher -c0'
+alias   k1='kak-launcher -c1'
 
 # Configs
 alias   hh='GIT_DIR=$HOME/.cfg/ GIT_WORK_TREE=$HOME'

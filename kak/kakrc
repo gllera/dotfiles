@@ -1,6 +1,6 @@
 #------- Basic stuf -------#
-set global tabstop     4
-set global indentwidth 4
+set global tabstop     3
+set global indentwidth 3
 set global startup_info_version 20200413
 set global ui_options ncurses_assistant=none
 set global autocomplete insert
@@ -32,7 +32,6 @@ def reuse-create-client -params 2 %{
 
 #------- Hooks -------#
 hook global InsertChar \t "exec -draft h@"
-hook global ClientClose main "kill"
 
 
 
