@@ -12,9 +12,9 @@ export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 
 typeset -gxU path=(
    "."
-   "$path[@]"
-   "$XDG_CONFIG_HOME/scripts"
    "$HOME/.local/bin"
+   "$XDG_CONFIG_HOME/scripts"
+   "$path[@]"
 )
 
 
