@@ -1,6 +1,6 @@
-[submodule "nvim/pack/gllera/start/vim-tmux-navigator"]
-	path = nvim/pack/gllera/start/vim-tmux-navigator
+[submodule "vim-tmux-navigator"]
+	path = .config/nvim/pack/gllera/start/vim-tmux-navigator
 	url = https://github.com/christoomey/vim-tmux-navigator.git
-[submodule "nvim/pack/gllera/start/vim-vinegar"]
-	path = nvim/pack/gllera/start/vim-vinegar
+[submodule "vim-vinegar"]
+	path = .config/nvim/pack/gllera/start/vim-vinegar
 	url = https://github.com/tpope/vim-vinegar.git
