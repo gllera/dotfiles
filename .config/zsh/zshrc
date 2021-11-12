@@ -134,7 +134,6 @@ alias  gsh='git show'
 alias    n='nnn -cod'
 alias   n0='NNN_OPENER="kak-launcher -c0" nnn -co'
 alias   n1='NNN_OPENER="kak-launcher -c1" nnn -co'
-alias tmux='tmux -f $XDG_CONFIG_HOME/tmux/tmux.conf'
 
 # Editor
 alias   kk='kak-launcher'
