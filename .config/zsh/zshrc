@@ -131,21 +131,25 @@ alias  grb='git rebase'
 alias  gsh='git show'
 
 # Windows
-alias    n='nnn -cod'
-alias   n0='NNN_OPENER="kak-launcher -c0" nnn -co'
-alias   n1='NNN_OPENER="kak-launcher -c1" nnn -co'
+alias  n='nnn -cod'
+alias n0='NNN_OPENER="kak-launcher -c0" nnn -co'
+alias n1='NNN_OPENER="kak-launcher -c1" nnn -co'
 
 # Editor
-alias   kk='kak-launcher'
-alias   kq='kak-launcher -q'
-alias   k0='kak-launcher -c0'
-alias   k1='kak-launcher -c1'
+alias kk='kak-launcher'
+alias kq='kak-launcher -q'
+alias k0='kak-launcher -c0'
+alias k1='kak-launcher -c1'
 
 # Configs
-alias   hh='GIT_DIR=$HOME/.cfg/ GIT_WORK_TREE=$HOME'
+alias cfg='GIT_DIR=$XDG_CACHE_HOME/dotfiles GIT_WORK_TREE=$HOME'
+alias config='cfg git'
 
 
 ide() {
    hash -d $(basename $PWD)=$PWD
    PROMPT="%F{green}%~ \$(prompt_git_status)%f$ "
 }
+
+[[ -e "$HOME/.zshrc.local" ]] && . "$HOME/.zshrc.local"
+

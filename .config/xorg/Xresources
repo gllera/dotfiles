@@ -1,9 +1,9 @@
-Xft.dpi: 120
+Xft.dpi: 192
 
-*.font:           xft:DejaVuSansMono Nerd Font Mono:style=Book:size=12
-*.boldFont:       xft:DejaVuSansMono Nerd Font Mono:style=Bold:size=12
-*.italicFont:     xft:DejaVuSansMono Nerd Font Mono:style=Oblique:size=12
-*.boldItalicFont: xft:DejaVuSansMono Nerd Font Mono:style=Bold Oblique:size=12
+*.font:           xft:DejaVuSansMono Nerd Font Mono:style=Book:size=10
+*.boldFont:       xft:DejaVuSansMono Nerd Font Mono:style=Bold:size=10
+*.italicFont:     xft:DejaVuSansMono Nerd Font Mono:style=Oblique:size=10
+*.boldItalicFont: xft:DejaVuSansMono Nerd Font Mono:style=Bold Oblique:size=10
 
 ! special
 *.foreground:   #ffffff

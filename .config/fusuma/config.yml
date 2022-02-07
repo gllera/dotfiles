@@ -1,0 +1,28 @@
+swipe:
+  3:
+    left:
+      command: "i3-msg 'focus right'"
+    right:
+      command: "i3-msg 'focus left'"
+    up:
+      command: "i3-msg 'focus down'"
+    down:
+      command: "i3-msg 'focus up'"
+  4:
+    left:
+     command:  "i3-msg 'workspace next'"
+    right:
+      command: "i3-msg 'workspace prev'"
+    up:
+      command: "i3-msg 'fullscreen toggle'"
+    down:
+      command: "i3-msg 'floating toggle'"
+
+threshold:
+  swipe: 0.4
+  pinch: 0.4
+
+interval:
+  swipe: 0.8
+  pinch: 0.1
+
