@@ -1,0 +1,18 @@
+#!/bin/bash
+set -eE
+
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+if [[ -e "$XDG_CONFIG_HOME" && ! -e "$XDG_CONFIG_HOME/.git" ]]; then
+   echo "Already exists: $XDG_CONFIG_HOME"
+   exit
+fi
+
+if [[ -e "$XDG_CONFIG_HOME" ]]; then
+   git -C "$XDG_CONFIG_HOME" pull --recurse-submodules
+else
+   git clone --recurse-submodules https://github.com/gllera/dotfiles.git "$XDG_CONFIG_HOME"
+fi
+
+ln -snfr "$XDG_CONFIG_HOME/zsh/zshrc"      ~/.zshrc
+ln -snfr "$XDG_CONFIG_HOME/tmux/tmux.conf" ~/.tmux.conf

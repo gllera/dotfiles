@@ -1,6 +1,10 @@
 *
 
-!/.*
+!/.gitignore
+!/.gitmodules
+!/init
+!/README.md
+
 !/awesome
 !/awesome/**
 !/dunst
