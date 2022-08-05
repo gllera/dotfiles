@@ -123,6 +123,7 @@ alias  gcf='git config --list'
 alias  glo="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'"
 alias   gm='git merge'
 alias   gp='git push'
+alias  gpu='git push -u origin HEAD'
 alias   gl='git pull'
 alias  grh='git reset'
 alias grhh='git reset --hard'
