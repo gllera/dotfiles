@@ -1,18 +1,16 @@
 [user]
-	email = gabriellleragarcia@gmail.com
-	name = gllera
+   email = gabriellleragarcia@gmail.com
+   name = gllera
 [credential]
-    helper = store
+   helper = store
 [core]
-    pager = delta
+   pager = delta
 [merge]
 	tool = vimdiff
 [diff]
 	tool = vimdiff
 [mergetool "vimdiff"]
 	cmd = nvim -d $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
-
-
 
 [interactive]
    diffFilter = delta --color-only
@@ -25,3 +23,5 @@
    #side-by-side = true
    hunk-header-style = omit
 
+[include]
+   path = ~/.gitconfig.local
