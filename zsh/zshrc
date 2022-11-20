@@ -29,7 +29,7 @@ export GUI=1
 # History
 HISTSIZE=10000
 SAVEHIST=10000
-HISTFILE="$XDG_CACHE_HOME/zsh_history"
+HISTFILE="$HOME/.zsh_history"
 
 # Prompt
 setopt PROMPT_SUBST
