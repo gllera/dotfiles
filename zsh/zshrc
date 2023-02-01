@@ -52,7 +52,7 @@ prompt_git_status() {
 
 # Plugins
 fzf-history-widget() {
-   local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --query=${LBUFFER} )
+   local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --exact --query=${LBUFFER} )
    [[ -n "$RES" ]] && BUFFER="$RES" && zle end-of-line
    zle reset-prompt
 }
@@ -156,6 +156,4 @@ ide() {
    hash -d $(basename $PWD)=$PWD
    PROMPT="%F{green}%~ \$(prompt_git_status)%f$ "
 }
-
-[[ -e "$HOME/.zshrc.local" ]] && . "$HOME/.zshrc.local"
 

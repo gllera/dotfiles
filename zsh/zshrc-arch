@@ -1,6 +1,9 @@
 #!/bin/zsh
 
 #### Configs
+# Common
+source ~/.config/zsh/zshrc
+
 # Basics
 export EDITOR=code
 export BROWSER=google-chrome-stable
@@ -9,16 +12,11 @@ export TERMINAL=urxvtc
 path+=("$XDG_CONFIG_HOME/scripts/i3")
 
 
-
 #### Aliases
 # Basics
 alias y='yay --nodiffmenu'
 
 
-
 #### Ending
-# Common
-source ~/.config/zsh/zshrc
-
 # Xorg
 [[ -z "$DISPLAY" ]] && [[ "$(tty)" == "/dev/tty1" ]] && exec startx
