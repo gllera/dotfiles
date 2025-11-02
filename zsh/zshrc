@@ -19,21 +19,15 @@ typeset -gxU path=(
 
 
 
-# nnn
-export NNN_OPENER=${NNN_OPENER:-scope}
-export GUI=1
-
-
-
 #### Zsh
 # History
-HISTSIZE=10000
-SAVEHIST=10000
+HISTSIZE=10000000
+SAVEHIST=1000000
 HISTFILE="$HOME/.zsh_history"
+setopt INC_APPEND_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE
 
 # Prompt
 setopt PROMPT_SUBST
-setopt INC_APPEND_HISTORY
 autoload -U select-word-style
 
 select-word-style bash
@@ -52,7 +46,7 @@ prompt_git_status() {
 
 # Plugins
 fzf-history-widget() {
-   local RES=$( fc -rln 1 | perl -ne 'print if !$seen{$_}++' | fzf --height=11 --tiebreak=index --info=hidden --reverse --exact --query=${LBUFFER} )
+   local RES=$( print -rNC1 -- ${(v)history} | fzf --read0 --height=11 --scheme=history --style=minimal --info=hidden --reverse --exact --query=${LBUFFER} )
    [[ -n "$RES" ]] && BUFFER="$RES" && zle end-of-line
    zle reset-prompt
 }
@@ -98,10 +92,13 @@ stty stop undef       # Disable ctrl-s to freeze terminal.
 
 
 #### Aliases
+alias startx='startx ~/.config/xorg/Xinitrc'
+
 # Basics
-alias   ls='ls --color=auto'
+alias   ls='ls --color=auto --group-directories-first'
 alias   ll='ls -lh'
-alias   la='ls -lha'
+alias   la='ll -A'
+alias   less='less -RS'
 
 # Git
 alias    g='git'
@@ -136,22 +133,9 @@ alias grhh='git reset --hard'
 alias  gsh='git show'
 alias  gst='git status'
 
-# Windows
-alias  n='nnn -cod'
-alias n0='NNN_OPENER="kak-launcher -c0" nnn -co'
-alias n1='NNN_OPENER="kak-launcher -c1" nnn -co'
 
-# Editor
-alias kk='kak-launcher'
-alias kq='kak-launcher -q'
-alias k0='kak-launcher -c0'
-alias k1='kak-launcher -c1'
 
 # Configs
-alias cfg='GIT_DIR=$XDG_CACHE_HOME/dotfiles GIT_WORK_TREE=$HOME'
-alias config='cfg git'
-
-
 ide() {
    hash -d $(basename $PWD)=$PWD
    PROMPT="%F{green}%~ \$(prompt_git_status)%f$ "

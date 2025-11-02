@@ -1,0 +1,21 @@
+#!/bin/bash
+
+Z="/dev/shm/i3blocks_hdd.prev"
+D=$(df -P / | awk 'NR==2 {print substr($1,6)}')
+read CR CW <<< $( awk -v d=$D '$3==d{print $6,$10}' /proc/diskstats )
+read PR PW < $Z
+SR=$(((CR-PR)*512))
+SW=$(((CW-PW)*512))
+
+conv() {
+  local B=$1 U=(B KB MB GB) i=0
+  while ((B>=1024 && i<3)); do B=$((B/1024)); ((i++)); done
+  if ((i == 0)); then
+    i=1
+    ((B!=0)) && B=1
+  fi
+  printf "%3d%s" "$B" "${U[i]}"
+}
+
+echo $CR $CW > $Z
+printf '<span>\uf0a0</span> %s %s' "$(conv $SR)" "$(conv $SW)"

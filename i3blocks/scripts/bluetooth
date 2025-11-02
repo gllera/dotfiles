@@ -1,0 +1,21 @@
+#!/bin/bash
+
+D=AC:80:0A:AE:E4:12
+Z="/dev/shm/i3blocks_bluetooth"
+
+case $BLOCK_BUTTON in
+    1) C=connect ;;
+    3) C=disconnect ;;
+    *) C= ;;
+esac
+
+bluetoothctl info $D 2>/dev/null | grep -q 'Connected: yes' && S='\uee58' || S='\uf001'
+
+if [[ -n $C ]]; then
+    echo "bluetoothctl $C $D; rm $Z; pkill -RTMIN+2 i3blocks" > $Z
+    i3-msg -q exec bash $Z
+fi
+
+printf '<span>%b</span>\n' "$S"
+echo
+[[ -f $Z ]] && echo "#FFFF00" || echo "#FFFFFF"

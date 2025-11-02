@@ -1,0 +1,14 @@
+#!/bin/bash
+
+case $BLOCK_BUTTON in
+    1) pavucontrol ;;
+    3) wpctl set-mute   @DEFAULT_AUDIO_SINK@ toggle ;;
+    4) wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%+ --limit 0.9 ;;
+    5) wpctl set-volume @DEFAULT_AUDIO_SINK@ 10%-   ;;
+esac
+
+VOL=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
+
+echo $VOL | awk '{printf "%.0f\n",$2*10}'
+echo
+echo $VOL | grep -q MUTED && echo "#FF5555" || echo "#FFFFFF"
