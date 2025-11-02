@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e
+#!/bin/sh
+set -xe
 
 CODE='[[ ! -f "$HOME/.config/zsh/zshrc" ]] || source "$HOME/.config/zsh/zshrc"'
 RCFILE="$HOME/.zshrc"

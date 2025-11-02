@@ -1,11 +1,11 @@
-#!/bin/bash
-set -exo pipefail
+#!/bin/sh
+set -xe
 
 export DEBIAN_FRONTEND=noninteractive
 
 apt purge -y snapd cloud-init
 apt update
-apt install curl software-properties-common
+apt install software-properties-common
 dpkg-query -W | grep man-db >/dev/null || unminimize
 
 echo Downloading chrome...
@@ -20,14 +20,14 @@ chmod a+r /etc/apt/keyrings/docker.asc
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" > /etc/apt/sources.list.d/docker.list
 apt update
 
-NVIDIA_PKG=$(apt-cache search nvidia-driver | grep -oP 'nvidia-driver-[0-9]+' | sort -nr | head -1)
-BASE_PKGS=(wget git zsh tmux jq ca-certificates nftables neovim fdisk gdisk netplan.io)
-DESKTOP_PKGS=(fonts-noto-color-emoji fonts-noto fonts-symbola xorg i3 i3blocks i3lock xautolock dmenu alacritty rofi feh picom maim)
-AUDIO_PKGS=(wireplumber pipewire pipewire-audio pipewire-pulse pipewire-audio-client-libraries playerctl blueman bluez)
-DOCKER_PKGS=(docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
-LOCAL_PKGS=(/tmp/chrome.deb /tmp/cursor.deb)
+NVIDIA_PKG="$(apt-cache search nvidia-driver | grep -oP 'nvidia-driver-[0-9]+' | sort -nr | head -1)"
+BASE_PKGS="wget git zsh tmux jq ca-certificates nftables neovim fdisk gdisk netplan.io"
+DESKTOP_PKGS="fonts-noto-color-emoji fonts-noto fonts-symbola xorg i3 i3blocks i3lock xautolock dmenu alacritty rofi feh picom maim"
+AUDIO_PKGS="wireplumber pipewire pipewire-audio pipewire-pulse pipewire-audio-client-libraries playerctl blueman bluez"
+DOCKER_PKGS="docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"
+LOCAL_PKGS="/tmp/chrome.deb /tmp/cursor.deb"
 
-apt install -y ${BASE_PKGS[@]} ${DESKTOP_PKGS[@]} ${AUDIO_PKGS[@]} ${DOCKER_PKGS[@]} ${LOCAL_PKGS[@]} $NVIDIA_PKG
+apt install -y $BASE_PKGS $DESKTOP_PKGS $AUDIO_PKGS $DOCKER_PKGS $LOCAL_PKGS $NVIDIA_PKG
 apt autoremove -y
 apt clean
 
