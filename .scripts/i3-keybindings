@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 awk '/^bindsym/ {
     sub(/^bindsym +/, "")
