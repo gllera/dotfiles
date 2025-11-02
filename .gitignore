@@ -5,6 +5,8 @@
 !/user-dirs.dirs
 !/user-dirs.locale
 
+!/.scripts
+!/.scripts/**
 !/alacritty
 !/alacritty/**
 !/dunst
@@ -25,6 +27,8 @@
 !/nvim/**
 !/picom
 !/picom/**
+!/rofi
+!/rofi/**
 !/tmux
 !/tmux/**
 !/xorg

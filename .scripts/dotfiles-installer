@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+CODE='[[ ! -f "$HOME/.config/zsh/zshrc" ]] || source "$HOME/.config/zsh/zshrc"'
+RCFILE="$HOME/.zshrc"
+
+if grep -qxF "$CODE" "$RCFILE" 2>/dev/null; then
+    echo 'Already done!'
+    exit
+fi
+
+echo "$CODE" >> "$RCFILE"
+
+mkdir -p "$HOME/.config"
+cd "$HOME/.config"
+echo '*' > .gitignore
+
+git init -q
+git remote add origin https://github.com/gllera/dotfiles.git
+git fetch origin master
+git checkout master
+
+echo 'Done!'
