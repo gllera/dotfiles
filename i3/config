@@ -28,9 +28,11 @@ floating_modifier $mod
 bindsym $mod+Return         exec --no-startup-id i3-sensible-terminal
 bindsym $mod+d              exec --no-startup-id rofi -show drun -show-icons
 bindsym $mod+l              exec --no-startup-id xset dpms force off
-bindsym $mod+Escape         exec --no-startup-id ~/.config/i3/system.sh
 bindsym $mod+m              exec --no-startup-id dunstctl history-pop
 bindsym $mod+Shift+m        exec --no-startup-id dunstctl close
+bindsym $mod+Escape         exec --no-startup-id ~/.config/i3/system.sh
+bindsym Print               exec --no-startup-id ~/.config/i3/screenshot.sh -r
+bindsym $mod+Print          exec --no-startup-id ~/.config/i3/screenshot.sh
 
 
 ##### Keybindings: window mgmt #################################################
@@ -129,8 +131,6 @@ bindsym XF86AudioNext         exec --no-startup-id playerctl next
 bindsym XF86AudioPrev         exec --no-startup-id playerctl previous
 bindsym XF86MonBrightnessUp   exec --no-startup-id brightnessctl set 5%+
 bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 5%-
-bindsym Print                 exec --no-startup-id maim -s ~/screenshot-$(date +%FT%T).png
-bindsym $mod+Print            exec --no-startup-id maim ~/screenshot-$(date +%FT%T).png
 
 ##### Rules ####################################################################
 # Float common utility windows
