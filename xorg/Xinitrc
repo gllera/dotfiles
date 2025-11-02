@@ -1,7 +1,4 @@
-[[ -f ~/.config/xorg/Xresources ]] && xrdb -merge -I$HOME ~/.config/xorg/Xresources
-[[ -f ~/.config/xorg/Xmodmap    ]] && xmodmap             ~/.config/xorg/Xmodmap
+xrdb -merge ~/.config/xorg/Xresources
+xmodmap     ~/.config/xorg/Xmodmap
 
-start-pulseaudio-x11
-urxvtd -q -f -o &
-
-i3
+exec dbus-run-session i3

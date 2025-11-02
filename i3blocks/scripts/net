@@ -1,0 +1,34 @@
+#!/bin/bash
+
+IF=$(ip r g 1 | awk '/dev/{for(i=1;i<=NF;i++)if($i=="dev"){print $(i+1);exit}}')
+R="/sys/class/net/$IF/statistics/rx_bytes"
+T="/sys/class/net/$IF/statistics/tx_bytes"
+Z="/dev/shm/i3blocks_net.$IF"
+
+[ -r "$R" ] || { echo "NET ?"; exit 0; }
+
+CR=$(cat "$R")
+CT=$(cat "$T")
+NOW=$(date +%s)
+
+if [ -f "$Z" ]; then
+    read PR PT PN < "$Z"
+    DT=$((NOW-PN))
+    [ $DT -lt 1 ] && DT=1
+    RXB=$(( (CR-PR)*8/DT ))
+    TXB=$(( (CT-PT)*8/DT ))
+else
+    RXB=0
+    TXB=0
+fi
+echo "$CR $CT $NOW" > "$Z"
+
+conv() {
+    B=$1
+    ((B>=1000000)) && printf "%3dMb" $((B/1000000)) && return
+    ((B>=1000))    && printf "%3dKb"    $((B/1000)) && return
+    ((B>0))        && printf "%3dKb"         1      && return
+                      printf "%3dKb"         0
+}
+
+printf '<span>\u21F5</span> %s %s' "$(conv $RXB)" "$(conv $TXB)"
