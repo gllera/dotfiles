@@ -1,0 +1,31 @@
+@import "gruvbox-dark-soft"
+
+configuration {
+    dpi: 192;
+    font: "RobotoMono Nerd Font 11";
+    
+    show-icons: false;
+    icon-theme: "Humanity";
+
+    display-drun: "Apps";
+    drun-display-format: "{name}";
+    fixed-num-lines: false;
+}
+
+window {
+    width: 35ch;
+}
+
+entry {
+    placeholder: "";
+}
+
+listview {
+    scrollbar: false;
+}
+
+element-icon {
+    size: 0.8em;
+    border: 0em;
+    margin: 0.1em 0.2em;
+}

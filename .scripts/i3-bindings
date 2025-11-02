@@ -1,0 +1,6 @@
+#!/bin/bash
+
+awk '/^bindsym/ {
+    sub(/^bindsym +/, "")
+    print $1 "\t" substr($0, index($0, $2))
+}' ~/.config/i3/config | column -s $'\t' -t | less -RS
