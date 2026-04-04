@@ -3,25 +3,23 @@
    name = gllera
 [credential]
    helper = store
-[core]
-   pager = delta
 [merge]
-	tool = vimdiff
-[diff]
 	tool = vimdiff
 [mergetool "vimdiff"]
 	cmd = nvim -d $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
-
-[interactive]
-   diffFilter = delta --color-only
 [add.interactive]
    useBuiltin = false # required for git 2.37.0
+[init]
+	defaultBranch = master
 
-[delta]
-   navigate = true    # use n and N to move between diff sections
-   light = false      # set to true if you're in a terminal w/ a light background color (e.g. the default macOS terminal)
-   #side-by-side = true
-   hunk-header-style = omit
+[diff]
+    tool = difftastic
+    external = difft
+[difftool "difftastic"]
+    cmd = difft "$LOCAL" "$REMOTE"
+[difftool]
+    prompt = false
 
 [include]
    path = ~/.gitconfig.local
+
