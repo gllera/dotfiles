@@ -9,6 +9,9 @@
 # Basics
 export XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
+# Claude Code config + state dir, relocated out of ~/.claude into the dotfiles
+# repo (read at launch; ~/.config/claude/.gitignore controls what's versioned).
+export CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}
 
 typeset -gxU path=(
    "."
@@ -35,13 +38,23 @@ select-word-style bash
 PROMPT="%F{blue}%n@%m %F{green}%~ \$(prompt_git_status)%f$ "
 
 prompt_git_status() {
-   local BRANCH="$( git rev-parse --abbrev-ref HEAD 2>/dev/null )"
-   local STATUS="%F{yellow}"
-    
-   if [[ -n "$BRANCH" ]]; then
-      git diff --quiet --ignore-submodules HEAD 2>/dev/null || STATUS="%F{red}"
-      printf '%b' "$STATUS($BRANCH) "
+   local raw branch color="%F{yellow}"
+   raw="$(git status --porcelain=v2 --branch 2>/dev/null)" || return   # not a repo
+   local -a lines=("${(@f)raw}")
+
+   # Branch name, or short SHA when detached
+   branch="${${lines[(r)*branch.head *]}##*head }"
+   if [[ $branch == '(detached)' ]]; then
+      branch="@${${lines[(r)*branch.oid *]##*oid }[1,7]}"
    fi
+
+   # Header lines start with '#'; any other line = dirty (staged/unstaged/untracked)
+   local l
+   for l in $lines; do
+      [[ $l == '#'* ]] || { color="%F{red}"; break }
+   done
+
+   print -rn -- "${color}(${branch}) "
 }
 
 # Plugins
@@ -74,6 +87,12 @@ key=(
    PageUp     "${terminfo[kpp]}"
    PageDown   "${terminfo[knp]}"
 )
+
+# Enter/leave keypad application mode so terminfo key sequences match.
+zle-line-init()   { echoti smkx }
+zle-line-finish() { echoti rmkx }
+zle -N zle-line-init
+zle -N zle-line-finish
 
 bindkey "${key[Delete]}" delete-char
 bindkey "${key[Home]}"   beginning-of-line
@@ -122,7 +141,7 @@ alias  gdc='git diff --cached'
 alias  gds='git diff --staged'
 alias   gf='git fetch'
 alias  gfa='git fetch --all --prune'
-alias  glo="git log --graph --pretty='%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset'"
+alias  glo="git log --graph --date=format-local:'%F %H:%M:%S' --pretty='%C(auto)%h%d%Creset %C(dim green)%cd%Creset %s %C(bold blue)[%an]'"
 alias   gm='git merge'
 alias   gl='git pull'
 alias   gp='git push'

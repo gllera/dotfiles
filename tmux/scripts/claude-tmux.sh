@@ -43,7 +43,7 @@ _recompute_win() {
   # which made the [ -n "$win" ] guard below always bail and @claude_win never update.
   while read -r wid cmd st; do
     win=$wid
-    [ "$cmd" = claude ] || continue
+    [ "$cmd" = claude ] || continue   # claude = process name marking a Claude pane
     case "$st" in
       wait) best=wait; break ;;
       busy) [ "$best" != wait ] && best=busy ;;
