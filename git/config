@@ -1,27 +1,48 @@
 [user]
-   email = gabriellleragarcia@gmail.com
-   name = gllera
-[credential]
-   helper = store
+	email = gabriellleragarcia@gmail.com
+	name = gllera
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
 [merge]
 	tool = vimdiff
+	conflictstyle = zdiff3
 [mergetool "vimdiff"]
 	cmd = nvim -d $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
-[add.interactive]
-   useBuiltin = false # required for git 2.37.0
 [init]
 	defaultBranch = master
 
 [diff]
-    tool = difftastic
-    external = difft
+	tool = difftastic
+	algorithm = histogram
 [difftool "difftastic"]
-    cmd = difft "$LOCAL" "$REMOTE"
+	cmd = difft "$LOCAL" "$REMOTE"
 [difftool]
-    prompt = false
+	prompt = false
+[pager]
+	difftool = true
+[alias]
+	dft = difftool
+
+[push]
+	autoSetupRemote = true
+[pull]
+	rebase = true
+[fetch]
+	prune = true
+[rebase]
+	autostash = true
+	updateRefs = true
+[rerere]
+	enabled = true
+[branch]
+	sort = -committerdate
 
 [include]
-   path = ~/.gitconfig.local
+	path = ~/.gitconfig.local
 
 [safe]
 	directory = *
