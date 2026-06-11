@@ -26,7 +26,7 @@ Run the following commands to install all required packages and configurations:
 
 ```bash
 # Core packages (i3wm, NVIDIA drivers, Google Chrome, cursor theme, etc.)
-curl -LOsSf https://dub.sh/gllera-i3 && sudo sh gllera-i3
+curl -LOsSf https://dot.llera.eu/i3 && sudo sh i3
 
 # Personal configurations
-curl -LOsSf https://dub.sh/gllera-config && sh gllera-config
+curl -LOsSf https://dot.llera.eu/config && sh config
