@@ -1,0 +1,97 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "inline_code_actions": false,
+  "cli_default_open_behavior": "existing_window",
+  "buffer_line_height": "standard",
+  "buffer_font_family": "DejaVu Sans Mono",
+  "diff_view_style": "split",
+  "agent_ui_font_size": 16.0,
+  "ui_font_family": "DejaVu Sans Mono",
+  "show_edit_predictions": false,
+  "debugger": {
+    "dock": "bottom",
+  },
+  "collaboration_panel": {
+    "button": false,
+  },
+  "calls": {
+    "share_on_join": false,
+  },
+  "diagnostics": {
+    "button": false,
+  },
+  "disable_ai": true,
+  "ssh_connections": [],
+  "outline_panel": {
+    "button": false,
+    "indent_guides": {
+      "show": "always",
+    },
+  },
+  "terminal": {
+    "font_family": "DejaVu Sans Mono",
+    "button": false,
+    "show_count_badge": false,
+  },
+  "project_panel": {
+    "sort_order": "default",
+    "hide_hidden": false,
+    "hide_root": true,
+    "git_status_indicator": false,
+    "scrollbar": {
+      "horizontal_scroll": true,
+      "show": "auto",
+    },
+    "bold_folder_labels": false,
+    "hide_gitignore": true,
+    "entry_spacing": "standard",
+    "dock": "left",
+  },
+  "git_panel": {
+    "dock": "right",
+    "button": true,
+    "tree_view": true,
+  },
+  "toolbar": {
+    "quick_actions": false,
+    "code_actions": false,
+  },
+  "minimap": {
+    "thumb": "always",
+    "show": "never",
+  },
+  "server_url": "https://zed.dev",
+  "edit_predictions": {
+    "provider": "none",
+    "allow_data_collection": "no",
+  },
+  "agent": {
+    "sidebar_side": "left",
+    "favorite_models": [],
+    "model_parameters": [],
+  },
+  "proxy": "",
+  "agent_servers": {},
+  "telemetry": {
+    "diagnostics": false,
+    "metrics": false,
+  },
+  "session": {
+    "trust_all_worktrees": true,
+  },
+  "icon_theme": "Zed (Default)",
+  "ui_font_size": 16,
+  "buffer_font_size": 15,
+  "theme": {
+    "mode": "system",
+    "light": "One Light",
+    "dark": "One Dark",
+  },
+}

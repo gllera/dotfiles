@@ -1,0 +1,15 @@
+// ~/.config/zed/keymap.json — user-level Zed keymap; applies to EVERY project.
+// Debugger hotkeys. No context => active whenever a debug session is running,
+// regardless of whether the editor or the debug panel has focus.
+// Run-to-cursor reads the active editor's cursor position.
+[
+  {
+    "bindings": {
+      "f5": "debugger::Continue",      // Continue
+      "ctrl-f5": "debugger::RunToCursor", // Run to cursor
+      "f6": "debugger::StepOver",      // Step over
+      "f7": "debugger::StepInto",      // Step into
+      "f8": "debugger::StepOut"        // Step out
+    }
+  }
+]

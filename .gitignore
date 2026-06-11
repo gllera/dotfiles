@@ -4,17 +4,23 @@
 !/README.md
 !/user-dirs.dirs
 !/user-dirs.locale
+!/user-dirs.conf
+!/mimeapps.list
 
 !/.scripts
 !/.scripts/**
 !/alacritty
 !/alacritty/**
+!/claude
+!/claude/CLAUDE.md
+!/claude/settings.json
 !/dunst
 !/dunst/**
 !/fontconfig
 !/fontconfig/**
 !/fonts
 !/fonts/**
+/fonts/.uuid
 !/fusuma
 !/fusuma/**
 !/git
@@ -33,5 +39,8 @@
 !/tmux/**
 !/xorg
 !/xorg/**
+!/zed
+!/zed/settings.json
+!/zed/keymap.json
 !/zsh
 !/zsh/**
