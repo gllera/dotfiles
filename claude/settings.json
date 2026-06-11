@@ -7,6 +7,7 @@
     "defaultMode": "bypassPermissions",
     "skipDangerousModePermissionPrompt": true
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -122,8 +123,8 @@
     "gopls-lsp@claude-plugins-official": true
   },
   "feedbackSurveyRate": 0,
+  "effortLevel": "xhigh",
   "companyAnnouncements": [],
   "skipDangerousModePermissionPrompt": true,
-  "theme": "auto",
-  "model": "claude-fable-5[1m]"
+  "theme": "auto"
 }

@@ -14,9 +14,7 @@ export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 export CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}
 
 typeset -gxU path=(
-   "."
    "$HOME/.local/bin"
-   "$XDG_CONFIG_HOME/scripts"
    "$path[@]"
 )
 
