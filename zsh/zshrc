@@ -15,6 +15,7 @@ export CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}
 
 typeset -gxU path=(
    "$HOME/.local/bin"
+   "$HOME/go/bin"
    "$path[@]"
 )
 
