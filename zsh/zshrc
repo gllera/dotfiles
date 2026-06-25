@@ -140,7 +140,7 @@ alias  gdc='git diff --cached'
 alias  gds='git diff --staged'
 alias   gf='git fetch'
 alias  gfa='git fetch --all --prune'
-alias  glo="git log --graph --date=format-local:'%F %H:%M:%S' --pretty='%C(auto)%h%d%Creset %C(dim green)%cd%Creset %s %C(bold blue)[%an]'"
+alias  glo="git log --graph --date=format-local:'%F %H:%M:%S' --pretty='%C(auto)%h%Creset %C(dim green)%cd%Creset%C(auto)%d%Creset %s %C(bold blue)[%an]'"
 alias   gm='git merge'
 alias   gl='git pull'
 alias   gp='git push'
