@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Claude usage badge for the tmux status bar.
 #
-# Fetches session (5h) + weekly (7d, incl. active per-model) usage from the
-# Claude OAuth usage endpoint and prints a tmux-styled one-liner, e.g.:
-#   59% 2.0h ┊ 26% 3.7d ┊ 1%
-# Gauges are unlabeled and in a fixed order (session, weekly, weekly-opus,
-# weekly-sonnet), with each percentage colored by threshold (green <50 · amber
+# Fetches session (5h) + weekly (7d, incl. per-model) usage from the Claude
+# OAuth usage endpoint and prints a tmux-styled one-liner, e.g.:
+#   41% 2.0h ┊ 28% 13h ┊ 43% Fable
+# Gauges render in the API's order (session, weekly, then one per active model);
+# session and weekly show a reset countdown, per-model gauges are labeled with
+# the model name. Each percentage is colored by threshold (green <50 · amber
 # 50-80 · red >80).
 #
 # Pure bash: jq parses the JSON, GNU/uutils `date -d` does the reset countdowns.
@@ -43,8 +44,16 @@ if [ -f "$CACHE" ]; then
 fi
 
 # Last-known value on any failure; nothing if we've never succeeded.
+# touch bumps the cache mtime so a *failed* fetch still counts against the TTL
+# gate above: without it, mtime stays pinned to the last success, age is always
+# >= TTL, and every 15s redraw re-hits the network — hammering a 429ing endpoint
+# 4x/min and never letting the rate limit clear. With it, failures back off to
+# one retry per TTL, the same cadence as success.
 fallback() {
-    [ -f "$CACHE" ] && cat "$CACHE" || true
+    if [ -f "$CACHE" ]; then
+        touch "$CACHE"
+        cat "$CACHE"
+    fi
     exit 0
 }
 
@@ -98,32 +107,44 @@ countdown() {
     fi
 }
 
-# jq emits one TSV row per present gauge (utilization non-null), in display order:
-#   utilization \t show-countdown \t resets_at
-# The active per-model weekly entries share the weekly reset, so they carry
-# show-countdown=false (no countdown rendered); session/weekly carry their own.
+# The usage API moved per-model breakdowns out of the old fixed seven_day_opus/
+# seven_day_sonnet keys (now always null) and into the `limits` array: one entry
+# per limit, each with an integer `percent`, a `kind` (session / weekly_all /
+# weekly_scoped), its own `resets_at`, and — for scoped entries — the model in
+# `scope.model.display_name`. jq emits one \x1f-joined row per limit, in array
+# order, with four fields:
+#   percent ␟ show-countdown ␟ resets_at ␟ label
+# weekly_scoped entries share the weekly reset (no countdown) but carry the model
+# name as a label; session and weekly_all render their own countdown, no label.
+#
+# Fields are joined with \x1f (unit separator), NOT a tab: scoped rows have an
+# empty resets_at and session/weekly rows have an empty label, so most rows carry
+# an empty *middle* field. A tab is IFS-whitespace, so `read` would collapse the
+# empty field and shift every column after it (dropping the label). \x1f is
+# non-whitespace, so empty fields survive the split.
 LINES=$(printf '%s' "$USAGE_JSON" | jq -r '
-  [ {key:"five_hour",        cd:"true"},
-    {key:"seven_day",        cd:"true"},
-    {key:"seven_day_opus",   cd:"false"},
-    {key:"seven_day_sonnet", cd:"false"} ][] as $g
-  | (.[$g.key] // null) as $e
-  | select($e != null and $e.utilization != null)
-  | [($e.utilization|tostring), $g.cd, ($e.resets_at // "")] | @tsv
+  .limits[]?
+  | select(.percent != null)
+  | [ (.percent|tostring),
+      (if .kind == "weekly_scoped" then "false" else "true" end),
+      (.resets_at // ""),
+      (.scope.model.display_name // "") ] | join("\u001f")
 ' 2>/dev/null) || fallback
 
 NOW=$(date +%s)
 SEP=" #[fg=${CU_SEP}]┊ " # dotted-bar separator between gauges
 
 OUT=""
-while IFS=$'\t' read -r util cdflag resets; do
-    [ -n "$util" ] || continue
-    printf -v p '%.0f' "$util" # round utilization to a whole %
-    # load-colored % (+ dim reset countdown when applicable)
+while IFS=$'\x1f' read -r pct cdflag resets label; do
+    [ -n "$pct" ] || continue
+    printf -v p '%.0f' "$pct" # percent is already whole; round defensively
+    # load-colored % (+ dim reset countdown, or dim model label on per-model rows)
     g="#[fg=$(col "$p")]${p}%"
     if [ "$cdflag" = "true" ]; then
         cd=$(countdown "$resets" "$NOW")
         if [ -n "$cd" ]; then g="$g #[fg=${CU_TIME}]${cd}"; fi
+    elif [ -n "$label" ]; then
+        g="$g #[fg=${CU_TIME}]${label}"
     fi
     if [ -n "$OUT" ]; then OUT="$OUT$SEP"; fi
     OUT="$OUT$g"

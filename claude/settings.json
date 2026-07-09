@@ -127,5 +127,6 @@
   "companyAnnouncements": [],
   "skipDangerousModePermissionPrompt": true,
   "theme": "auto",
-  "agentPushNotifEnabled": false
+  "agentPushNotifEnabled": false,
+  "tui": "fullscreen"
 }
