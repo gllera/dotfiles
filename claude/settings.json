@@ -90,6 +90,17 @@
         ]
       }
     ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.config/claude/statusline.sh --compacted",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "matcher": "",
@@ -109,7 +120,8 @@
   "statusLine": {
     "type": "command",
     "command": "~/.config/claude/statusline.sh",
-    "padding": 0
+    "padding": 0,
+    "refreshInterval": 5
   },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true,
