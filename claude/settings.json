@@ -135,10 +135,12 @@
     "frontend-design@claude-plugins-official": true
   },
   "feedbackSurveyRate": 0,
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "companyAnnouncements": [],
   "skipDangerousModePermissionPrompt": true,
   "theme": "auto",
+  "switchModelsOnFlag": false,
+  "remoteControlAtStartup": false,
   "agentPushNotifEnabled": false,
   "tui": "fullscreen"
 }
