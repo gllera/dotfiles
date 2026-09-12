@@ -12,6 +12,9 @@ export XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
 # Claude Code config + state dir, relocated out of ~/.claude into the dotfiles
 # repo (read at launch; ~/.config/claude/.gitignore controls what's versioned).
 export CLAUDE_CONFIG_DIR=${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}
+# Claude Code usage log (one usage-<host>.log per machine, written by the status line and
+# trimmed by its PostCompact hook); local state, out of the dotfiles repo
+export CLAUDE_USAGE_LOG_DIR=${CLAUDE_USAGE_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/claude}
 
 typeset -gxU path=(
    "$HOME/.local/bin"

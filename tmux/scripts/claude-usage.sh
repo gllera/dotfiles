@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 # Claude usage badge for the tmux status bar.
 #
-# Fetches session (5h) + weekly (7d, incl. per-model) usage from the Claude
-# OAuth usage endpoint and prints a tmux-styled one-liner, e.g.:
-#   41% 2.0h ┊ 28% 13h ┊ 43% Fable
+# Prints a tmux-styled one-liner: the Claude Code spend rate (last 15 min, $/h) from
+# the status line's usage logs, then session (5h) + weekly (7d, incl. per-model)
+# usage from the Claude OAuth usage endpoint, the session and weekly percentages
+# between what their window has spent so far and its time left, e.g.:
+#   $26/h ┊ $31 16% 3.5h ┊ $151 80% 5.3d ┊ 43% Fable
 # Gauges render in the API's order (session, weekly, then one per active model);
 # session and weekly show a reset countdown, per-model gauges are labeled with
 # the model name. Each percentage is colored by threshold (green <50 · amber
-# 50-80 · red >80).
+# 50-80 · red >80); all other text is dim. Bash + jq, like its siblings here.
 #
-# Pure bash: jq parses the JSON, GNU/uutils `date -d` does the reset countdowns.
-# This keeps the whole scripts/ directory single-language (its siblings —
-# claude-tmux.sh, pane-switch.sh — are bash too); python3 was the lone outlier.
-#
-# Result is cached for $TTL seconds: the status bar redraws every
-# status-interval (15s) but the network is hit ~once/min. The OAuth token is
-# read fresh from the credentials file on every fetch — Claude Code rotates it,
-# we never refresh it ourselves. Any failure (expired token / offline / parse
-# error) falls back to the last cached value, or prints nothing if there is none,
+# The API response is cached for $TTL seconds as data, not markup, and the pill is
+# drawn from it on every redraw: the status bar redraws every status-interval (15s)
+# but the network is hit ~once/min, while countdowns and spend stay live. The OAuth
+# token is read fresh from the credentials file on every fetch — Claude Code rotates
+# it, we never refresh it ourselves. Any failure (expired token / offline / parse
+# error) keeps the last cached limits, or shows the spend alone if there are none,
 # so the status bar never shows an error.
 
 set -euo pipefail
@@ -26,136 +25,195 @@ set -euo pipefail
 HERE="${0%/*}"
 . "$HERE/config.sh"
 
-# Credentials file written by Claude Code, holding the OAuth access token. Lives
-# in CLAUDE_CONFIG_DIR, which defaults to ~/.config/claude here (this config has
-# been relocated there from Claude Code's own ~/.claude default).
+# OAuth token file written by Claude Code, in its config dir (~/.config/claude here).
 CRED="${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}/.credentials.json"
-CACHE="${TMPDIR:-/tmp}/claude-usage.$EUID.cache"
+# The cache: a header line (last fetch attempt, the weekly window's spend in
+# nano-dollars), then one line per limit, in the API's order:
+#   percent ␟ kind ␟ reset epoch (0: none) ␟ model label
+# Fields are joined with \x1f (unit separator), NOT a tab: most rows carry an empty
+# field, and a tab is IFS-whitespace, so `read` would collapse empty fields and
+# shift the rest; \x1f is not, so they survive the split.
+CACHE="${TMPDIR:-/tmp}/claude-usage.$EUID.limits"
 TTL=60 # seconds to cache a response before refetching
-
-# Fresh cache wins — read it and bail (the common path, no network). Fires on every
-# status redraw, so the read is forkless ($(<file), not a cat subprocess).
-if [ -f "$CACHE" ]; then
-    age=$(($(date +%s) - $(stat -c %Y "$CACHE" 2>/dev/null || echo 0)))
-    if [ "$age" -lt "$TTL" ]; then
-        printf '%s' "$(<"$CACHE")"
-        exit 0
-    fi
-fi
-
-# Last-known value on any failure; nothing if we've never succeeded.
-# touch bumps the cache mtime so a *failed* fetch still counts against the TTL
-# gate above: without it, mtime stays pinned to the last success, age is always
-# >= TTL, and every 15s redraw re-hits the network — hammering a 429ing endpoint
-# 4x/min and never letting the rate limit clear. With it, failures back off to
-# one retry per TTL, the same cadence as success.
-fallback() {
-    if [ -f "$CACHE" ]; then
-        touch "$CACHE"
-        cat "$CACHE"
-    fi
-    exit 0
-}
-
-command -v jq >/dev/null 2>&1 || fallback
-
-# USAGE_JSON is the raw usage response. CU_FAKE_USAGE is a test seam: when set,
-# it stands in for the response so the render path can be exercised without the
-# network (and without a token). Empty/unset -> real fetch.
-USAGE_JSON="${CU_FAKE_USAGE:-}"
-if [ -z "$USAGE_JSON" ]; then
-    command -v curl >/dev/null 2>&1 || fallback
-    [ -r "$CRED" ] || fallback
-    TOKEN=$(jq -r '.claudeAiOauth.accessToken // empty' "$CRED" 2>/dev/null) || fallback
-    [ -n "$TOKEN" ] || fallback
-    USAGE_JSON=$(curl -fsS --max-time 5 \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "anthropic-beta: oauth-2025-04-20" \
-        -H "anthropic-version: 2023-06-01" \
-        "https://api.anthropic.com/api/oauth/usage" 2>/dev/null) || fallback
-fi
-
-# Percentage color by load.
-col() {
-    if [ "$1" -ge "$CU_RED_AT" ]; then
-        printf '%s' "$CU_RED"
-    elif [ "$1" -ge "$CU_AMBER_AT" ]; then
-        printf '%s' "$CU_AMBER"
-    else
-        printf '%s' "$CU_GREEN"
-    fi
-}
-
-# Time-to-reset, largest unit only: days/hours to 1 decimal, minutes whole.
-# Pure integer math (bash has no floats): scale by 10 and add half the divisor
-# so the divide rounds (matching python's :.1f) rather than truncates; minutes
-# floor, as before. Then split the tenths into integer/fraction.
-countdown() {
-    local resets=$1 now=$2 target secs t
-    [ -n "$resets" ] || return 0
-    target=$(date -d "$resets" +%s 2>/dev/null) || return 0
-    secs=$((target - now))
-    if ((secs < 0)); then secs=0; fi
-    if ((secs >= 86400)); then
-        t=$(((secs * 10 + 43200) / 86400))
-        printf '%d.%dd' $((t / 10)) $((t % 10))
-    elif ((secs >= 3600)); then
-        t=$(((secs * 10 + 1800) / 3600))
-        printf '%d.%dh' $((t / 10)) $((t % 10))
-    else
-        printf '%dm' $((secs / 60))
-    fi
-}
-
-# The usage API moved per-model breakdowns out of the old fixed seven_day_opus/
-# seven_day_sonnet keys (now always null) and into the `limits` array: one entry
-# per limit, each with an integer `percent`, a `kind` (session / weekly_all /
-# weekly_scoped), its own `resets_at`, and — for scoped entries — the model in
-# `scope.model.display_name`. jq emits one \x1f-joined row per limit, in array
-# order, with four fields:
-#   percent ␟ show-countdown ␟ resets_at ␟ label
-# weekly_scoped entries share the weekly reset (no countdown) but carry the model
-# name as a label; session and weekly_all render their own countdown, no label.
-#
-# Fields are joined with \x1f (unit separator), NOT a tab: scoped rows have an
-# empty resets_at and session/weekly rows have an empty label, so most rows carry
-# an empty *middle* field. A tab is IFS-whitespace, so `read` would collapse the
-# empty field and shift every column after it (dropping the label). \x1f is
-# non-whitespace, so empty fields survive the split.
-LINES=$(printf '%s' "$USAGE_JSON" | jq -r '
-  .limits[]?
-  | select(.percent != null)
-  | [ (.percent|tostring),
-      (if .kind == "weekly_scoped" then "false" else "true" end),
-      (.resets_at // ""),
-      (.scope.model.display_name // "") ] | join("\u001f")
-' 2>/dev/null) || fallback
-
-NOW=$(date +%s)
+LOGDIR="${CLAUDE_USAGE_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/claude}"
+NOW=$EPOCHSECONDS
+H5=18000 D7=604800 Q15=900 # the session and weekly windows, and the rate's 15 min
+US=$'\x1f'
+DIM="#[fg=${CU_TIME}]"
 SEP=" #[fg=${CU_SEP}]┊ " # dotted-bar separator between gauges
 
-OUT=""
-while IFS=$'\x1f' read -r pct cdflag resets label; do
-    [ -n "$pct" ] || continue
-    printf -v p '%.0f' "$pct" # percent is already whole; round defensively
-    # load-colored % (+ dim reset countdown, or dim model label on per-model rows)
-    g="#[fg=$(col "$p")]${p}%"
-    if [ "$cdflag" = "true" ]; then
-        cd=$(countdown "$resets" "$NOW")
-        if [ -n "$cd" ]; then g="$g #[fg=${CU_TIME}]${cd}"; fi
-    elif [ -n "$label" ]; then
-        g="$g #[fg=${CU_TIME}]${label}"
+# The cached limits, read forklessly (the common path touches no network).
+C_AT=0 C_W7=0 L=()
+if [ -f "$CACHE" ]; then
+    {
+        IFS=$US read -r C_AT C_W7 || true
+        while IFS= read -r x; do if [ -n "$x" ]; then L+=("$x"); fi; done
+    } <"$CACHE"
+fi
+[[ $C_AT =~ ^[0-9]+$ ]] || C_AT=0
+[[ $C_W7 =~ ^-?[0-9]+$ ]] || C_W7=0
+
+# starts: T5 and T7, when the session and weekly windows began (their reset minus
+# 5 h / 7 d), or 0 if unknown or already reset.
+starts() {
+    local x p k r l
+    T5=0 T7=0
+    for x in "${L[@]}"; do
+        IFS=$US read -r p k r l <<<"$x"
+        if ((r > NOW)); then
+            case $k in
+                session) T5=$((r - H5)) ;;
+                weekly_all) T7=$((r - D7)) ;;
+            esac
+        fi
+    done
+}
+
+# spend T5 T7: from the Claude Code status line's usage logs (statusline.sh writes one
+# usage-<host>.log per machine into $CLAUDE_USAGE_LOG_DIR; this reads a line's time,
+# column 1, and cost increase in nano-dollars, column 7), S5 and S7, what the session
+# and weekly windows have spent since they began (not summed for a 0 start), and SQ,
+# the last 15 min. Each log is read backwards (tac) in one pass, only as far as the
+# earliest start needed: the session window (or 15 min) on every redraw, the week
+# only on a fetch (that sum is then cached). Blank or torn lines are skipped. Only
+# what the logs hold counts: spend from before a log began, or from sessions
+# without the status line, is missing.
+spend() {
+    local f a b c q=$((NOW - Q15)) cut
+    cut=$q
+    if (($1 && $1 < cut)); then cut=$1; fi
+    if (($2 && $2 < cut)); then cut=$2; fi
+    S5=0 S7=0 SQ=0
+    while read -r a b c; do
+        S5=$((S5 + a)) S7=$((S7 + b)) SQ=$((SQ + c))
+    done < <(for f in "$LOGDIR"/usage-*.log; do
+        [ -f "$f" ] || continue
+        tac "$f" 2>/dev/null | awk -F'\t' -v c="$cut" -v s5="$1" -v s7="$2" -v q="$q" '
+          $1 !~ /^[0-9]+$/ { next }                  # the header, blank or torn lines
+          $1 < c { exit }
+          { if (s5 && $1 >= s5) w5 += $7; if (s7 && $1 >= s7) w7 += $7; if ($1 >= q) wq += $7 }
+          END { printf "%.0f %.0f %.0f\n", w5, w7, wq }' || true
+    done)
+}
+
+# tenths VALUE DIVISOR VAR: VALUE / DIVISOR to one decimal, "d.d". Pure integer math
+# (bash has no floats): scale by 10 and add half the divisor so the divide rounds
+# rather than truncates, then split the tenths into integer/fraction.
+tenths() {
+    local t=$((($1 * 10 + $2 / 2) / $2))
+    printf -v "$3" '%d.%d' $((t / 10)) $((t % 10))
+}
+# usd NANO VAR: whole dollars and a space, empty under $0.50.
+usd() {
+    if (($1 >= 500000000)); then printf -v "$2" '%s$%d ' "$DIM" $((($1 + 500000000) / 1000000000))
+    else printf -v "$2" ''; fi
+}
+# rate NANO VAR: 15 minutes' spend as $/h, a decimal under $10/h and whole dollars
+# above, empty under $0.10/h (like the status line's own rate).
+rate() {
+    local c=$(($1 * 4 / 10000000)) d # cents per hour
+    if ((c >= 995)); then printf -v "$2" '%s$%d/h' "$DIM" $(((c + 50) / 100))
+    elif ((c >= 10)); then tenths "$c" 100 d; printf -v "$2" '%s$%s/h' "$DIM" "$d"
+    else printf -v "$2" ''; fi
+}
+# countdown EPOCH VAR: time to reset, largest unit only: days/hours to 1 decimal,
+# minutes whole (floored).
+countdown() {
+    local s=$(($1 - NOW)) d
+    if ((s < 0)); then s=0; fi
+    if ((s >= 86400)); then tenths "$s" 86400 d; printf -v "$2" '%sd' "$d"
+    elif ((s >= 3600)); then tenths "$s" 3600 d; printf -v "$2" '%sh' "$d"
+    else printf -v "$2" '%dm' $((s / 60)); fi
+}
+
+# draw: the pill from the limits and the spend: the rate, then each gauge — the
+# session and weekly ones led by their window's spend, per-model ones carrying their
+# label, the others their countdown. bg set once; the #[fg=...] changes leave it
+# intact. No trailing space/gap: the pill abuts the gold session block that follows
+# it in status-right (see tmux.conf), so #[default] resets right at its edge.
+draw() {
+    local x p k r l g c cd d5 d7 out
+    usd "$S5" d5; usd "$C_W7" d7; rate "$SQ" out
+    for x in "${L[@]}"; do
+        IFS=$US read -r p k r l <<<"$x"
+        if ((p >= CU_RED_AT)); then c=$CU_RED
+        elif ((p >= CU_AMBER_AT)); then c=$CU_AMBER
+        else c=$CU_GREEN; fi
+        g="#[fg=$c]$p%"
+        case $k in
+            weekly_scoped) if [ -n "$l" ]; then g="$g $DIM$l"; fi ;;
+            session) g="$d5$g" ;;&
+            weekly_all) g="$d7$g" ;;&
+            *) if ((r > 0)); then countdown "$r" cd; g="$g $DIM$cd"; fi ;;
+        esac
+        out+="${out:+$SEP}$g"
+    done
+    if [ -n "$out" ]; then printf '%s' "#[bg=${CU_PILL}] ${out} #[default]"; fi
+}
+
+# save: rewrite the cache from C_AT, C_W7 and L, through a temp file per process
+# (tmux runs this once per attached client, so writes can overlap).
+save() {
+    {
+        printf '%s\n' "$C_AT$US$C_W7"
+        if ((${#L[@]})); then printf '%s\n' "${L[@]}"; fi
+    } 2>/dev/null >"$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE" 2>/dev/null || true
+}
+
+# fetch: refresh L from the usage endpoint; non-zero on any failure, L untouched.
+# CU_FAKE_USAGE is a test seam: when set, it stands in for the response, so the
+# render path can be exercised without the network (and without a token).
+fetch() {
+    local json=${CU_FAKE_USAGE:-} token rows
+    command -v jq >/dev/null 2>&1 || return 1
+    if [ -z "$json" ]; then
+        command -v curl >/dev/null 2>&1 && [ -r "$CRED" ] || return 1
+        token=$(jq -r '.claudeAiOauth.accessToken // empty' "$CRED" 2>/dev/null) && [ -n "$token" ] || return 1
+        json=$(curl -fsS --max-time 5 \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "anthropic-version: 2023-06-01" \
+            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null) || return 1
     fi
-    if [ -n "$OUT" ]; then OUT="$OUT$SEP"; fi
-    OUT="$OUT$g"
-done <<<"$LINES"
+    # `limits` holds one entry per limit: an integer `percent`, a `kind` (session /
+    # weekly_all / weekly_scoped), its `resets_at` (ISO 8601; made an epoch here,
+    # fractional seconds and any ±HH:MM offset handled, 0 if absent or unreadable)
+    # and, for scoped entries (which share the weekly reset), the model in
+    # `scope.model.display_name`.
+    rows=$(jq -r --arg us "$US" '
+      def epoch: (try (capture("^(?<t>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})?$")
+          | (.t + "Z" | fromdateiso8601)
+            - ((.z // "Z") as $z | if $z == "Z" then 0
+               else ($z[1:3] | tonumber) * 3600 + ($z[-2:] | tonumber) * 60 | if $z[0:1] == "-" then -. else . end end))
+        catch empty) // 0;
+      .limits[]? | select(.percent != null)
+      | [ (.percent | round), (.kind // ""), ((.resets_at // "") | epoch), (.scope.model.display_name // "") ]
+      | map(tostring) | join($us)' <<<"$json" 2>/dev/null) || return 1
+    [ -n "$rows" ] || return 1
+    mapfile -t L <<<"$rows"
+}
 
-[ -n "$OUT" ] || fallback
+# Fresh limits: draw with the live session spend and bail (the common path).
+if ((NOW - C_AT < TTL)); then
+    starts
+    spend "$T5" 0
+    draw
+    exit 0
+fi
 
-# bg set once; the #[fg=...] changes leave it intact through the whole pill.
-# No trailing space/gap: the pill abuts the gold session block that follows it
-# in status-right (see tmux.conf), so #[default] resets right at the pill edge.
-OUT="#[bg=${CU_PILL}] ${OUT} #[default]"
+# Stale or missing: claim the fetch first by stamping the cache with this attempt
+# (limits unchanged), so other tmux clients redrawing meanwhile draw from it instead
+# of fetching too, and a *failed* fetch still counts against the TTL: failures back
+# off to one retry per TTL, the same cadence as success, instead of every 15s redraw
+# re-hitting a 429ing endpoint and never letting the rate limit clear.
+C_AT=$NOW
+save
 
-printf '%s' "$OUT" >"$CACHE.tmp" && mv "$CACHE.tmp" "$CACHE"
-printf '%s' "$OUT"
+# Then, fetched or not, one log pass for everything, from the new limits or the
+# last ones: the week's spend (cached) and the live figures.
+fetch || true
+starts
+spend "$T5" "$T7"
+C_W7=$S7
+save
+draw

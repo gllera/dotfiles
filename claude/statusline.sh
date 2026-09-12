@@ -2,35 +2,40 @@
 # Claude Code status line
 # Reads the session JSON on stdin and prints one left-aligned row, fitted to $COLUMNS (wrapped here):
 #   <model> <effort>  <dir> <branch>* ↑<ahead>↓<behind> ⎇ <worktree>  ━━━━──── <tok>K
-#   … ● <min>m[/<ttl>] <hit>% <n>✗ <cause>  (or ○ cold)  $<cost> Δ<increase> ████████  #<pr>
+#   … [<min>m][/<ttl>] <n>✗ <cause>  (or cold)  $<cost>  $<rate>/h  $<per 1M>/M  ████████  #<pr>
 # Nothing is padded: Claude Code doesn't re-run the script on a resize, so a shrink cuts the
 # row's end until the next refresh (refreshInterval: 5 s).
 # Segments are omitted when empty/zero. Git state is computed locally (cached briefly).
-# After a compaction (PostCompact hook in settings.json) the cost, cache hit % and miss count
+# After a compaction (PostCompact hook in settings.json) the cost, miss count and the bar's window
 # restart: they cover only what accrued since it.
-# Δ is the last cost increase, to the cent; the 8-cell bar after it splits it by colour in 64ths
-# (eighth blocks): green cache read, yellow cache write, red output (+ uncached input), gray
-# other. Each increase is also logged with the plan's usage-limit % (usage-<host>.log, in
-# $CLAUDE_USAGE_LOG_DIR or cache/statusline).
+# After the cost: the spend rate over the last 15 min ($/h), then the 8-cell bar splitting the
+# spend on the last ~5M tokens, subagents included, by colour in 64ths (eighth blocks): green
+# cache read, yellow cache write, red output (+ uncached input), gray other; $/M before it is their
+# cost per 1M tokens. Each refresh that prices spend logs it with the plan's usage-limit %
+# (usage-<host>.log, in $CLAUDE_USAGE_LOG_DIR or cache/statusline).
 
 cache_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/cache/statusline"
 # usage log, one file per host so a folder synced between machines never has two writers on one
-# file; the analysis merges them by time. Set CLAUDE_USAGE_LOG_DIR in settings.json "env" (not
-# only in the statusLine command) so the PostCompact hook, which trims the log, sees it too.
+# file; the analysis merges them by time. Set CLAUDE_USAGE_LOG_DIR in the environment Claude Code
+# starts with (a shell rc, or settings.json "env"), not only in the statusLine command, so the
+# PostCompact hook, which trims the log, sees it too.
 host=${HOSTNAME%%.*}; host=${host//[^A-Za-z0-9_-]/}
 ul_dir=${CLAUDE_USAGE_LOG_DIR:-$cache_dir}; ul="$ul_dir/usage-${host:-host}.log"
 
-# PostCompact hook mode (`statusline.sh --compacted`): empty the session's base2-<sid> file, which
+# PostCompact hook mode (`statusline.sh --compacted`): empty the session's base3-<sid> file, which
 # makes the next render snapshot the baseline (see "compaction baseline"), prune week-old cache
-# files (usage logs excepted), and trim this host's usage log past 8 MB to its header and last
-# 50000 lines. Silent and always exits 0, so it never surfaces as a hook error.
+# files (usage logs excepted), and trim this host's usage log past 8 MB to its header and last 8
+# days (the tmux badge's weekly spend reads 7; a symlinked log is trimmed at its target).
+# Silent and always exits 0, so it never surfaces as a hook error.
 if [ "${1:-}" = --compacted ]; then
   sid=$(jq -r '.session_id // empty' 2>/dev/null); sid=${sid//[^A-Za-z0-9_-]/}
   if [ -n "$sid" ]; then
-    mkdir -p "$cache_dir" 2>/dev/null && : > "$cache_dir/base2-$sid" 2>/dev/null
+    mkdir -p "$cache_dir" 2>/dev/null && : > "$cache_dir/base3-$sid" 2>/dev/null
     find "$cache_dir" -type f -mtime +7 ! -name 'usage*.log*' -delete 2>/dev/null
+    [ -L "$ul" ] && ul=$(readlink -f "$ul")
     [ -n "$(find "$ul" -size +8M 2>/dev/null)" ] \
-      && { head -n 1 "$ul"; tail -n 50000 "$ul"; } > "$ul.tmp" 2>/dev/null && mv -f "$ul.tmp" "$ul"
+      && { head -n 1 "$ul"; awk -F'\t' -v c=$(( $(date +%s) - 691200 )) 'NR > 1 && $1 >= c' "$ul"; } \
+         > "$ul.tmp.$$" 2>/dev/null && mv -f "$ul.tmp.$$" "$ul"
   fi
   exit 0
 fi
@@ -47,7 +52,8 @@ DIRC=$'\033[34m'; BRANCH=$'\033[95m'; WTC=$'\033[2;95m'
 WARN=$'\033[38;5;220m'; ALERT=$'\033[38;5;196m'; GOOD=$'\033[38;5;40m'
 
 # --- fields: one jq pass over stdin, emitting shell-quoted (@sh) assignments that are eval'd ---
-# Named, so adding a field needs no renumbering. Booleans and null print bare (true/false/null);
+# Named, so adding a field needs no renumbering. Booleans and null print bare (true/false/null),
+# arrays and objects empty (@sh would print an array as several words, which eval would run);
 # bad JSON prints nothing, leaving every field unset (defaults below). No apostrophes in this
 # program: it sits inside single quotes. `exec` spares the subshell a fork.
 eval "$(exec jq -r '
@@ -56,20 +62,17 @@ eval "$(exec jq -r '
   def n: num // 0;                                             # counts: integer, else 0
   def short: {system_prompt_changed: "sysprompt", likely_server_side: "server"}[.]
              // (sub("_changed$"; "") | gsub("_"; "-"));        # miss cause → short label
-  .context_window as $w | ($w.current_usage // {}) as $u | (.prompt_cache // {}) as $p |
-  @sh "model=\(.model.display_name // "Claude") mid=\(.model.id // "") fast=\(.fast_mode)",
-  @sh "effort=\(.effort.level // "") cwd=\(.cwd // .workspace.current_dir // "")",
-  @sh "wt=\(.workspace.git_worktree // .worktree.name // "") sid=\(.session_id // "")",
-  @sh "cost=\(.cost.total_cost_usd // 0) pr_num=\(.pr.number // "") pr_state=\(.pr.review_state // "")",
-  @sh "ctx=\($w.used_percentage // "") tok=\($w.total_input_tokens | n)",
+  def v: if type == "array" or type == "object" then "" else . end;   # scalars only
+  .context_window as $w | (.prompt_cache // {}) as $p |
+  @sh "model=\(.model.display_name // "Claude" | v) mid=\(.model.id // "" | v) fast=\(.fast_mode | v)",
+  @sh "effort=\(.effort.level // "" | v) cwd=\(.cwd // .workspace.current_dir // "" | v)",
+  @sh "wt=\(.workspace.git_worktree // .worktree.name // "" | v) sid=\(.session_id // "" | v) tp=\(.transcript_path // "" | v)",
+  @sh "cost=\(.cost.total_cost_usd // 0 | v) pr_num=\(.pr.number // "" | v) pr_state=\(.pr.review_state // "" | v)",
+  @sh "ctx=\($w.used_percentage // "" | v) tok=\($w.total_input_tokens | n)",
   # plan usage limits (subscriptions only): used % and reset epoch, for the usage log
-  @sh "rl5=\(.rate_limits.five_hour.used_percentage // "") rl5r=\(.rate_limits.five_hour.resets_at // "")",
-  @sh "rl7=\(.rate_limits.seven_day.used_percentage // "") rl7r=\(.rate_limits.seven_day.resets_at // "")",
-  # last API request of the main conversation: input, output, cache write, cache read
-  @sh "cu_in=\($u.input_tokens | n) cu_out=\($u.output_tokens | n) cu_w=\($u.cache_creation_input_tokens | n) cu_r=\($u.cache_read_input_tokens | n)",
-  @sh "pc_seen=\($p.caching_observed) pc_warm=\($p.warm) pc_ttl=\($p.ttl // "")",
-  @sh "pc_exp=\($p.expires_at | num // "") pc_h=\($p.hit_ratio // "")",
-  @sh "pc_w=\($p.cache_write_tokens | n)",
+  @sh "rl5=\(.rate_limits.five_hour.used_percentage // "" | v) rl5r=\(.rate_limits.five_hour.resets_at // "" | v)",
+  @sh "rl7=\(.rate_limits.seven_day.used_percentage // "" | v) rl7r=\(.rate_limits.seven_day.resets_at // "" | v)",
+  @sh "pc_seen=\($p.caching_observed | v) pc_warm=\($p.warm | v) pc_ttl=\($p.ttl // "" | v) pc_exp=\($p.expires_at | num // "")",
   # misses and the last miss cause, minus idle-TTL expiries (the cold state already shows those);
   # the cause label gets a "+" when there were several
   @sh "pc_miss=\(try ([($p.misses | n) - ([($p.miss_causes // {}) | to_entries[] | select(.key | ttl) | .value | n] | add // 0), 0] | max) catch 0)",
@@ -77,12 +80,15 @@ eval "$(exec jq -r '
 ' 2>/dev/null)"
 : "${model:=Claude}"
 sid=${sid//[^A-Za-z0-9_-]/}
-for v in tok cu_in cu_out cu_w cu_r pc_w pc_miss; do [[ ${!v} =~ ^[0-9]+$ ]] || printf -v "$v" 0; done
+for v in tok pc_miss; do [[ ${!v} =~ ^[0-9]+$ ]] || printf -v "$v" 0; done
 model=${model% (*context)}   # "Opus 5 (1M context)" → "Opus 5"
 dir=${cwd##*/}; [ "$cwd" = "$HOME" ] && dir="~"                # the cwd's last component
 
 # \x1f-separated cache records (tab is IFS whitespace, so `read` would collapse empty middle fields)
-put() { local f=$1 IFS=$'\x1f'; shift; printf '%s\n' "$*" 2>/dev/null > "$f"; }
+# put writes a temp file and renames it over, so an overlapping render never reads it half-written;
+# unchanged content (most refreshes) isn't rewritten, sparing the mv
+put() { local f=$1 IFS=$'\x1f' o; shift; { IFS= read -r o < "$f"; } 2>/dev/null; [ "$o" = "$*" ] && return
+        printf '%s\n' "$*" 2>/dev/null > "$f.$$" && mv -f "$f.$$" "$f" 2>/dev/null; }
 get() { local _f=$1; shift; [ -f "$_f" ] && IFS=$'\x1f' read -r "$@" < "$_f"; }
 
 # --- git branch + dirty + ahead/behind (cached 3 s per cwd to stay snappy in big repos) ---
@@ -120,102 +126,219 @@ cfmt() { printf -v "$2" '%d.%02d' $(( $1 / 100 )) $(( $1 % 100 )); }
 usd() { cfmt $(( ($1 + 50) / 100 )) "$2"; }
 clamp() { printf -v "$1" '%s' $(( $2 < $3 ? $3 : $2 > $4 ? $4 : $2 )); }   # VAR value lo hi
 
-# --- compaction baseline: cost, cache hit % and misses restart at a compaction ---
-# The PostCompact hook empties base2-<sid>; the next render snapshots four cumulative counters
-# into it (cost in 1/10000 $, total input tokens, cache-write tokens, misses), and each metric
-# then shows current − baseline; no baseline reads as zeros, i.e. the whole session. Dropped if
-# the cost falls below it (/clear, or a resume resetting it).
-# Total input is implied by the hit ratio (in 1e-9): total = (writes + uncached) / (1 - ratio).
-# Uncached input is ~0.02% of it in practice, so tin takes total ≈ writes / (1 - ratio), and
-# reads ≈ total - writes. That drops uncached / (1 - ratio) — tens of K tokens, roughly
-# constant — so the since-% is off by tens of points for the first requests after a compaction.
-# It stays hidden until 300K input tokens have accrued since: simulated error < 1 point from
-# there, even at 100 uncached tokens per request. Without a baseline the ratio is shown as is.
-tin() { if [ "$2" -lt 1000000000 ]; then printf -v "$3" '%s' $(( $1 * 1000000000 / (1000000000 - $2) )); else printf -v "$3" 0; fi; }
+# --- compaction baseline: cost and misses restart at a compaction ---
+# The PostCompact hook empties base3-<sid>; the next render snapshots the cumulative cost (in
+# 1/10000 $) and misses into it, and both then show current − baseline; no baseline reads as
+# zeros, i.e. the whole session. A baseline above the cost is ignored, and dropped once the
+# window confirms the cost reset (/clear, or a resume resetting it): a single render with older
+# JSON must not lose it.
 fx "$cost" 4 cur
-hs=""; [ -n "$pc_h" ] && fx "$pc_h" 9 hs
-tin "$pc_w" "${hs:-0}" t_in
-base=""
+# state lock: renders can overlap, and the one that doesn't get the lock (flock -n, released on
+# exit) only reads the state below. Without flock there's no lock.
+lk=1
+if [ -n "$sid" ] && command -v flock >/dev/null; then lk=""; exec 9>"$cache_dir/lock-$sid" && flock -n 9 && lk=1; fi 2>/dev/null
+base=""; b_raw=""
 if [ -n "$sid" ]; then
-  bf="$cache_dir/base2-$sid"
-  [ -f "$bf" ] && [ ! -s "$bf" ] && put "$bf" "$cur" "$t_in" "$pc_w" "$pc_miss"
-  get "$bf" b_cost b_t b_w b_miss
-  [[ $b_cost =~ ^[0-9]+$ ]] && { if [ "$b_cost" -gt "$cur" ]; then rm -f "$bf"; else base=1; fi; }
+  bf="$cache_dir/base3-$sid"
+  [ -n "$lk" ] && [ -f "$bf" ] && [ ! -s "$bf" ] && put "$bf" "$cur" "$pc_miss"
+  get "$bf" b_cost b_miss
+  [[ $b_cost =~ ^[0-9]+$ ]] && { b_raw=$b_cost; [ "$b_cost" -le "$cur" ] && base=1; }
 fi
-[ -n "$base" ] || { b_cost=""; b_t=""; b_w=""; b_miss=""; }
-s_cost=$(( cur - b_cost )); s_t=$(( t_in - b_t )); s_w=$(( pc_w - b_w ))   # empty reads as 0
+[ -n "$base" ] || { b_cost=""; b_miss=""; }
+s_cost=$(( cur - b_cost ))                                    # empty reads as 0
 s_miss=$(( pc_miss > b_miss ? pc_miss - b_miss : 0 ))
-pc_hit=""
-if [ -n "$hs" ]; then
-  if [ -z "$base" ]; then pc_hit=$(( (hs * 100 + 500000000) / 1000000000 ))
-  elif [ "$s_t" -ge 300000 ]; then clamp pc_hit $(( ((s_t - s_w) * 100 + s_t / 2) / s_t )) 0 100; fi
-fi
 
-# --- cost-update breakdown (appended to the session cost) ---
-# Claude Code raises cost.total_cost_usd when an API request completes, and current_usage then
-# holds that request's final token counts: pricing them reproduces the increase to the
-# micro-dollar (verified live). So each increase is split into cache read / cache write / input /
-# output from current_usage; whatever that can't explain (subagents, compaction, several requests
-# between two refreshes, a model missing from the table) shows as "other", so the parts always sum
-# to the increase. The JSON has no request id, so a request's input side (input:write:read tokens)
-# stands in for one. Prices are nano-dollars per token (= $/MTok × 1000). State in delta3-<sid>:
-# the cost and input side seen at the last refresh, the input side priced last, the shown
-# increase and its split (read, write, output + input, other).
-p_in=""; rdiv=10; fast_ok=""                                  # read = input / rdiv
-case "$mid" in
-  claude-opus-5*|claude-opus-4-8*)       p_in=5000;  p_out=25000; fast_ok=1 ;;
-  claude-opus-4-7*|claude-opus-4-6*)     p_in=5000;  p_out=25000 ;;
-  claude-sonnet-5*)                      p_in=2000;  p_out=10000 ;;
-  claude-sonnet-4-6*|claude-sonnet-4-5*) p_in=3000;  p_out=15000 ;;
-  claude-haiku-4-5*)                     p_in=1000;  p_out=5000 ;;
-  claude-fable-5-1*|claude-mythos-5-1*)  p_in=10000; p_out=50000; rdiv=40 ;;
-  claude-fable-5*|claude-mythos-5*)      p_in=10000; p_out=50000 ;;
-esac
-if [ -n "$p_in" ]; then
-  [ "$fast" = true ] && [ -n "$fast_ok" ] && { p_in=$(( p_in * 2 )); p_out=$(( p_out * 2 )); }
-  p_r=$(( p_in / rdiv ))
-  if [ "$pc_ttl" = 5m ]; then p_w=$(( p_in * 5 / 4 )); else p_w=$(( p_in * 2 )); fi  # write 1.25× / 2×
-fi
-# price IN W R: the input side's parts, from the NAMES of its token variables (unset reads as 0)
-price() { a_i=$(( $1 * p_in )); a_w=$(( $2 * p_w )); a_r=$(( $3 * p_r )); }
-tol=5000                                                      # float noise in the reported total
-d=""; logd=""
+# --- spend window: the bar after the cost, and $/M ---
+# Prices are nano-dollars per token (= $/MTok × 1000). State in delta4-<sid>: the cost seen at
+# the last refresh, the window's split (read, write, output + input, other), tokens, baseline
+# stamp and priced tokens, and whether the last refresh saw the cost drop.
+# The window (for the bar and $/M) is a token-weighted moving sum, so it needs no history: each
+# response of k tokens first scales the running split and token counts by T / (T + k), then adds
+# its own. T = 5M tokens, so it holds about the last 5M tokens (a token's weight halves after
+# ~3.5M more: ~11 requests at 300K context). Responses come from the session's transcripts, the
+# main one and its subagents' (<transcript>/subagents/*.jsonl), each priced exactly from its own
+# usage, model, speed and cache TTL. Only new bytes are read: tx-<sid> keeps each file's offset
+# and last response id (a response spans several lines, all with the same usage), and a file not
+# modified since the last read began (txm-<sid>'s mtime) isn't opened, so an idle refresh starts
+# no process. A new session starts at the files' ends. The cost rise no transcript explains
+# (Claude Code's side calls, a model missing from the price table) is "other", converted to
+# tokens at the window's own $/token (the cache-read price while empty); with no readable
+# transcript at all (a changed format?) the whole bar goes gray and $/M goes.
+# $/M is the priced part's cost per U = 1M tokens (a $/MTok rate, comparable to the price sheet):
+# priced spend × U / priced tokens, both exact, so "other" never moves it. Until 5M tokens have
+# passed the window just holds fewer. $/M is hidden (the bar isn't) until the window holds 500K
+# priced tokens: the first request after a compaction re-writes the whole context, and alone it
+# reads ~$20 per 1M. Also for a model missing from the price table, whose spend is all "other".
+# Money is in micro-dollars, so T × parts can't overflow. It restarts with the cost (/clear,
+# resume) and at a compaction: it's stamped with the baseline's cost and emptied, after adding
+# that render's increase (like the cost, the compaction's own spend isn't in it), whenever the
+# baseline differs from its stamp, so a render that overlapped the snapshot can't carry the old
+# window over. A cost drop only counts as a restart when two refreshes in a row see it: a single
+# one may be a render whose (older) JSON landed after a newer one's, and leaves the state as is.
+# rates MODEL: nano-dollars per input and output token (r_in empty: not in the table), read =
+# input / r_rd, r_fast when the model has a fast mode (×2)
+rates() { r_in=""; r_rd=10; r_fast=""
+  case "$1" in
+    claude-opus-5*|claude-opus-4-8*)       r_in=5000;  r_out=25000; r_fast=1 ;;
+    claude-opus-4-7*|claude-opus-4-6*)     r_in=5000;  r_out=25000 ;;
+    claude-sonnet-5*)                      r_in=2000;  r_out=10000 ;;
+    claude-sonnet-4-6*|claude-sonnet-4-5*) r_in=3000;  r_out=15000 ;;
+    claude-haiku-4-5*)                     r_in=1000;  r_out=5000 ;;
+    claude-fable-5-1*|claude-mythos-5-1*)  r_in=10000; r_out=50000; r_rd=40 ;;
+    claude-fable-5*|claude-mythos-5*)      r_in=10000; r_out=50000 ;;
+  esac; }
+rates "$mid"; p_r=${r_in:+$(( r_in / r_rd ))}                 # the session model's cache-read price
+tol=5000                                                     # float noise in the reported total
+wT=5000000                                                    # the bar's window, in tokens
+wU=1000000                                                    # $/M's unit: cost per this many tokens
+# wadd READ WRITE OUT OTHER K Q: the window takes a response (nano-dollars; K tokens, Q of them
+# priced): decay by T / (T + K), then add (nano → micro $)
+wadd() { local dd=$(( wT + $5 ))
+  wr=$(( (wr * wT + dd / 2) / dd + ($1 + 500) / 1000 )); ww=$(( (ww * wT + dd / 2) / dd + ($2 + 500) / 1000 ))
+  wo=$(( (wo * wT + dd / 2) / dd + ($3 + 500) / 1000 )); wx=$(( (wx * wT + dd / 2) / dd + ($4 + 500) / 1000 ))
+  wk=$(( (wk * wT + dd / 2) / dd + $5 )); wq=$(( (wq * wT + dd / 2) / dd + $6 )); }
+# wkx NANO: kx = tokens for unpriced spend, at the window's $/token (the cache-read price if empty)
+wkx() { local ws=$(( wr + ww + wo + wx ))
+  if [ "$ws" -gt 0 ] && [ "$wk" -gt 0 ]; then kx=$(( $1 / 1000 * wk / ws )); else kx=$(( $1 / ${p_r:-1000} )); fi; }
+# transcript chunks → \x1f-separated rows (a missing speed must not shift the fields, as tabs
+# would): one per new response (R model speed in write-1h write-5m read out) and per file (F path
+# offset last-id). Each chunk is framed by \x1d<path>\x1f<offset>\x1f<id> and \x1e,
+# which JSON text can't hold raw; a last line still being written ends glued to the \x1e and isn't
+# consumed. Offsets count the UTF-8 bytes of complete lines. A line that doesn't parse as expected
+# is skipped (try), so one odd line can't stall the reading; token counts that aren't numbers
+# read as 0.
+txjq='def i: if type == "number" then floor else 0 end;
+  reduce inputs as $l ({o: [], f: null, n: 0, id: ""};
+  if ($l | startswith("\u001d")) then ($l[1:] | split("\u001f")) as $h
+    | .f = $h[0] | .n = ($h[1] | tonumber) | .id = ($h[2] // "")
+  elif ($l | endswith("\u001e")) then .o += [["F", .f, .n, .id]]
+  else .n += ($l | utf8bytelength) + 1
+    | if ($l | contains("\"usage\"")) then . as $s | try (
+        ($l | fromjson) as $j | $j.message as $m | $m.usage as $u
+        | if $j.type == "assistant" and ($u | type) == "object" and ($m.id // "") != .id then
+            .id = ($m.id // "")
+            | .o += [["R", ($m.model // ""), ($u.speed // ""), ($u.input_tokens | i),
+                ($u.cache_creation.ephemeral_1h_input_tokens
+                  // (($u.cache_creation_input_tokens | i) - ($u.cache_creation.ephemeral_5m_input_tokens | i)) | i),
+                ($u.cache_creation.ephemeral_5m_input_tokens | i),
+                ($u.cache_read_input_tokens | i), ($u.output_tokens | i)]]
+          else . end) catch $s
+      else . end
+  end) | .o[] | map(tostring) | join("\u001f")'
+stale=""; wz=""; rph=0; lg_r=0; lg_w=0; lg_o=0; lg_i=0; lg_x=0 # lg_*: this refresh's spend, for the log
 if [ -n "$sid" ]; then
   fx "$cost" 9 cn
-  df="$cache_dir/delta3-$sid"; p_cost=""
-  get "$df" p_cost l_in l_w l_r pk d pr pw po px
-  seen="$cu_in:$cu_w:$cu_r"; last="$l_in:$l_w:$l_r"            # input sides: on screen, seen last time
-  if ! [[ $p_cost =~ ^[0-9]+$ ]] || [ "$cn" -lt "$p_cost" ]; then
-    d=""                                                      # first refresh, or the cost reset (/clear)
-  elif [ "$cn" -gt "$p_cost" ]; then
-    d=$(( cn - p_cost )); pr=0; pw=0; po=0; px=$d; li=0; logd=1 # default: all "other"
-    # nothing new to price while current_usage still shows the request priced last (subagents
-    # finishing while the main conversation is idle, compaction)
-    if [ -n "$p_in" ] && [ "$seen" != "$pk" ]; then
-      price cu_in cu_w cu_r; a_o=$(( cu_out * p_out ))
-      x=$(( d - a_r - a_w - a_i - a_o )); k=$seen
-      # this refresh already shows the next request in flight: price the one seen last time (if
-      # not priced yet) from that earlier view, its output being the remainder
-      if [ "${x#-}" -gt "$tol" ] && [[ $l_r =~ ^[0-9]+$ ]] && [ $(( cu_in + cu_w + cu_r )) -gt 0 ] \
-         && [ "$last" != "$seen" ] && [ "$last" != "$pk" ]; then
-        price l_in l_w l_r; o=$(( d - a_r - a_w - a_i ))
-        if [ "$o" -ge 0 ] && [ $(( o / p_out )) -le 128000 ]; then a_o=$o; x=0; k=$last
-        else price cu_in cu_w cu_r; fi                        # rejected: back to the current view
+  df="$cache_dir/delta4-$sid"; p_cost=""
+  get "$df" p_cost wr ww wo wx wk wb wq dn
+  for v in wr ww wo wx wk wq; do [[ ${!v} =~ ^[0-9]+$ ]] || printf -v "$v" 0; done
+  # transcripts, which feed the window (see above). tx-<sid>: priced, attributed and
+  # pending-unexplained spend and when its minute began, then a line per file: path, offset, last
+  # response id
+  tf="$cache_dir/tx-$sid"; tm="$cache_dir/txm-$sid"; tP=""; tA=""; tU=0; tUt=""
+  declare -A toff=() tid=()
+  [ -f "$tf" ] && { IFS=$'\x1f' read -r tP tA tU tUt _
+                    while IFS=$'\x1f' read -r x1 x2 x3; do toff[$x1]=$x2; tid[$x1]=$x3; done; } < "$tf"
+  [[ $tU =~ ^-?[0-9]+$ ]] || tU=0; [[ $tUt =~ ^[0-9]+$ ]] || tUt=""
+  if ! [[ $p_cost =~ ^[0-9]+$ ]] || { [ "$cn" -lt "$p_cost" ] && [ -n "$dn" ]; }; then
+    dn=""; wz=1; wr=0; ww=0; wo=0; wx=0; wk=0; wq=0           # first refresh, or a cost reset (/clear)
+    [ -n "$lk" ] && [ -n "$b_raw" ] && [ "$b_raw" -gt "$cur" ] && rm -f "$bf"   # a baseline above it
+  elif [ "$cn" -lt "$p_cost" ]; then
+    stale=1; dn=1                                             # a drop seen once: maybe older JSON, late
+  else dn=""
+  fi
+  [ -n "$lk" ] || stale=1                                     # another render holds the lock: read only
+  # window from the transcripts (see above)
+  if [ -z "$stale" ]; then
+    tfs=()                                                    # the files that exist
+    if [ -n "$tp" ]; then shopt -s nullglob; tfs=( "${tp%.jsonl}/subagents/"*.jsonl ); shopt -u nullglob
+      [ -f "$tp" ] && tfs=( "$tp" "${tfs[@]}" ); fi
+    tch=""; t_f=1000000                                       # how much this render's responses age the window (ppm)
+    if ! [[ $tP =~ ^[0-9]+$ && $tA =~ ^-?[0-9]+$ ]]; then      # new: start at the files' ends
+      [ "${#tfs[@]}" -gt 0 ] && while read -r x1 x2; do toff[$x2]=$x1; done < <(stat -c '%s %n' -- "${tfs[@]}" 2>/dev/null)
+      tP=0; tA=$cn; tU=0; tUt=""; tch=1; : > "$tm"
+    else
+      # not older than the marker: a write in the same clock tick as the last touch has an equal
+      # mtime, and must still be read (-nt would miss it until the file changed again)
+      chg=(); for x1 in "${tfs[@]}"; do { [ -z "${toff[$x1]+x}" ] || ! [ "$x1" -ot "$tm" ]; } && chg+=( "$x1" ); done
+      if [ "${#chg[@]}" -gt 0 ]; then
+        : > "$tm"; tch=1                                      # before reading: a write from now is newer
+        while IFS=$'\x1f' read -r rk rm rs ri rw1 rw5 rrd ro; do
+          if [ "$rk" = F ]; then toff[$rm]=$rs; tid[$rm]=$ri; continue; fi
+          rates "$rm"; [ -n "$r_in" ] || continue             # unpriced model: left to "other"
+          [ "$rs" = fast ] && [ -n "$r_fast" ] && { r_in=$(( r_in * 2 )); r_out=$(( r_out * 2 )); }
+          t_r=$(( rrd * r_in / r_rd )); t_w=$(( rw1 * r_in * 2 + rw5 * r_in * 5 / 4 )); t_o=$(( ro * r_out + ri * r_in ))
+          t_k=$(( ri + rw1 + rw5 + rrd + ro )); tP=$(( tP + t_r + t_w + t_o ))
+          wadd "$t_r" "$t_w" "$t_o" 0 "$t_k" "$t_k"
+          lg_r=$(( lg_r + t_r )); lg_w=$(( lg_w + t_w )); lg_o=$(( lg_o + ro * r_out )); lg_i=$(( lg_i + ri * r_in ))
+          t_f=$(( t_f * wT / (wT + t_k) ))
+        done < <(for x1 in "${chg[@]}"; do printf '\x1d%s\x1f%s\x1f%s\n' "$x1" "${toff[$x1]:-0}" "${tid[$x1]}"
+                   tail -c +$(( ${toff[$x1]:-0} + 1 )) -- "$x1" 2>/dev/null; printf '\x1e\n'; done | jq -nRr "$txjq" 2>/dev/null)
       fi
-      [ "${x#-}" -le "$tol" ] && x=0
-      [ "$x" -ge 0 ] && { pr=$a_r; pw=$a_w; po=$(( a_o + a_i )); li=$a_i; px=$x; pk=$k; }   # else unexplained: all other
+    fi
+    # the cost rise no transcript explains goes to "other" once it has stayed unexplained a
+    # minute: the cost lands as soon as a response ends, but its transcript line can take seconds,
+    # and renders come as little as 1 s apart. tU is what was pending when that minute began
+    # (tUt); spend that arrived since waits for the next minute. Lines that turn up later still
+    # make the priced total pass the cost: that much comes back out of "other" (negative other in
+    # the log; out of the window aged as those responses aged it), so no spend counts twice.
+    # Under $0.001 either way is left alone.
+    t_u=$(( cn - tP - tA ))
+    if [ -n "$wz" ]; then tA=$(( cn - tP )); tU=0; tUt=""; tch=1   # the window restarted: nothing owed
+    elif [ "$t_u" -lt -1000000 ]; then                               # priced past the cost: take it back
+      ws=$(( wr + ww + wo + wx )); t_a=$(( -t_u / 1000 * t_f / 1000000 )); [ "$t_a" -gt "$wx" ] && t_a=$wx
+      [ "$t_a" -gt 0 ] && { wk=$(( wk - t_a * wk / ws )); [ "$wk" -lt "$wq" ] && wk=$wq; wx=$(( wx - t_a )); }
+      lg_x=$t_u; tA=$(( cn - tP )); tU=0; tUt=""; tch=1
+    elif [ "$t_u" -le 1000000 ]; then [ "$tU$tUt" != 0 ] && { tU=0; tUt=""; tch=1; }   # nothing pending
+    elif [ -z "$tUt" ]; then tU=$t_u; tUt=$now; tch=1                # a minute starts
+    elif [ $(( now - tUt )) -ge 60 ]; then
+      t_a=$(( t_u < tU ? t_u : tU )); wkx "$t_a"; wadd 0 0 0 "$t_a" "$kx" 0; lg_x=$t_a; tA=$(( tA + t_a ))
+      t_u=$(( t_u - t_a )); if [ "$t_u" -gt 1000000 ]; then tU=$t_u; tUt=$now; else tU=0; tUt=""; fi; tch=1
+    fi
+    if [ -n "$tch" ]; then
+      { printf '%s\x1f%s\x1f%s\x1f%s\n' "$tP" "$tA" "$tU" "$tUt"
+        for x1 in "${!toff[@]}"; do [ -f "$x1" ] && printf '%s\x1f%s\x1f%s\n' "$x1" "${toff[$x1]}" "${tid[$x1]}"; done
+      } 2>/dev/null > "$tf.$$" && mv -f "$tf.$$" "$tf" 2>/dev/null
     fi
   fi
-  put "$df" "$cn" "$cu_in" "$cu_w" "$cu_r" "$pk" "$d" "$pr" "$pw" "$po" "$px"
-  # usage log: a line per increase with the plan's usage-limit % at that moment, to fit how much
-  # each part weighs on the 5-hour / weekly limits (Anthropic doesn't document it). Tab-separated,
-  # money in nano-dollars, output and uncached input apart (they may weigh differently); only when
-  # the JSON carries rate limits (subscriptions). Overlapping renders can log an increase twice,
-  # so dedupe on sid + cost (cumulative) when analysing. The header is appended, never truncating.
-  if [ -n "$logd" ] && [ -n "$rl5$rl7" ]; then
+  if [ -z "$lk" ]; then :                                     # read only
+  elif [ -n "$stale" ]; then                                  # keep the state, noting the drop
+    put "$df" "$p_cost" "$wr" "$ww" "$wo" "$wx" "$wk" "$wb" "$wq" "$dn"
+  else
+    [ "$wb" != "$b_cost" ] && { wr=0; ww=0; wo=0; wx=0; wk=0; wq=0; wb=$b_cost; }   # new baseline: restart
+    put "$df" "$cn" "$wr" "$ww" "$wo" "$wx" "$wk" "$wb" "$wq" "$dn"
+  fi
+  # spend rate: $/h over the last 15 min, from the session cost (so subagents and Claude Code's
+  # side calls count). rate-<sid> keeps a sample (time, cost) at most once a minute, back to the
+  # newest one at least 15 min old: the base (else the oldest there is). The time divided by is
+  # at least 15 min, so a fresh session ramps up instead of spiking, and the rate fades out 15
+  # min after the last spend. It restarts with the cost (/clear); a read-only render only reads.
+  rf="$cache_dir/rate-$sid"; rs_t=(); rs_c=(); rch=""
+  if [ -n "$wz" ]; then rch=1
+  elif [ -f "$rf" ]; then while IFS=$'\x1f' read -r x1 x2; do
+      [[ $x1 =~ ^[0-9]+$ && $x2 =~ ^[0-9]+$ ]] && { rs_t+=( "$x1" ); rs_c+=( "$x2" ); }; done < "$rf"; fi
+  x1=0; for (( i = 1; i < ${#rs_t[@]}; i++ )); do [ $(( now - rs_t[i] )) -ge 900 ] && x1=$i; done
+  [ "$x1" -gt 0 ] && { rs_t=( "${rs_t[@]:x1}" ); rs_c=( "${rs_c[@]:x1}" ); rch=1; }   # older than the base
+  if [ -z "$stale" ] && { [ "${#rs_t[@]}" -eq 0 ] || [ $(( now - rs_t[-1] )) -ge 60 ]; }; then
+    rs_t+=( "$now" ); rs_c+=( "$cn" ); rch=1; fi
+  [ "${#rs_t[@]}" -gt 0 ] && [ "$cn" -gt "${rs_c[0]}" ] \
+    && rph=$(( (cn - rs_c[0]) * 36 / ((now - rs_t[0] < 900 ? 900 : now - rs_t[0]) * 100000) ))   # nano-$ → cents/h
+  if [ -n "$rch" ] && [ -z "$stale" ]; then
+    { for (( i = 0; i < ${#rs_t[@]}; i++ )); do printf '%s\x1f%s\n' "${rs_t[i]}" "${rs_c[i]}"; done
+    } 2>/dev/null > "$rf.$$" && mv -f "$rf.$$" "$rf" 2>/dev/null
+  fi
+  # usage log: a line per refresh that priced spend (transcript responses, subagents included, and
+  # "other"), with the plan's usage-limit % at that moment, to fit how much each part weighs on
+  # the 5-hour / weekly limits (Anthropic doesn't document it). Tab-separated, money in
+  # nano-dollars, output and uncached input apart (they may weigh differently); the limit
+  # columns are empty when the JSON carries no rate limits. "Other" taken back (its transcript
+  # line came late) is logged as negative other. The tmux badge (claude-usage.sh) sums it for
+  # the $/h and the 5-hour / weekly spend, reading columns 1 (ts) and 7 (delta) by position:
+  # add new columns at the end. The header is appended, never truncating.
+  lg=$(( lg_r + lg_w + lg_o + lg_i + lg_x ))
+  if [ $(( lg_r | lg_w | lg_o | lg_i | lg_x )) -ne 0 ]; then
     [ -f "$ul" ] || { mkdir -p "$ul_dir" 2>/dev/null; printf '#ts\tsid\tmodel\tfast\tttl\tcost\tdelta\tread\twrite\tout\tin\tother\tpct5h\treset5h\tpct7d\treset7d\n' 2>/dev/null >> "$ul"; }
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$now" "$sid" "$mid" "$fast" "$pc_ttl" \
-      "$cn" "$d" "$pr" "$pw" $(( po - li )) "$li" "$px" "$rl5" "$rl5r" "$rl7" "$rl7r" 2>/dev/null >> "$ul"
+      "$cn" "$lg" "$lg_r" "$lg_w" "$lg_o" "$lg_i" "$lg_x" "$rl5" "$rl5r" "$rl7" "$rl7r" 2>/dev/null >> "$ul"
   fi
 fi
 
@@ -257,20 +380,29 @@ bar8() {
   done
   printf -v "$out" '%s' "$s$RESET"
 }
-dbrk=""; dmin=""                                              # "Δ.xx <bar>" and plain "Δ.xx"
-if [[ $d =~ ^[0-9]+$ ]]; then
-  dc=$(( (d + 5000000) / 10000000 ))                          # nano-dollars → cents
-  if [ "$dc" -gt 0 ]; then
-    cfmt "$dc" dmin; dmin="${DIM}Δ${dmin#0}${RESET}"              # Δ.32, Δ1.24
-    bar=""; bar8 bar "${pr:-0}" "${pw:-0}" "${po:-0}" "${px:-0}"
-    dbrk=$dmin${bar:+ $bar}
+dbrk=""; dmin=""                                              # "$<per 1M>/M <bar>" and plain "$<per 1M>/M"
+if [ "${wk:-0}" -gt 0 ]; then
+  bar=""; bar8 bar "$wr" "$ww" "$wo" "$wx"
+  if [ "${wq:-0}" -ge $(( wT / 10 )) ]; then                    # $/M needs 500K priced tokens
+    ec=$(( ((wr + ww + wo) * wU / wq + 5000) / 10000 ))         # priced micro-$ per wU priced tokens → cents
+    [ "$ec" -gt 0 ] && { cfmt "$ec" dmin; dmin="${DIM}\$${dmin}/M${RESET}"; }   # $0.32/M, $12.40/M
   fi
+  dbrk=$dmin${bar:+${dmin:+  }$bar}                          # the same 2-space gap as the rest
+fi
+
+# spend rate, dim: a decimal under $10/h, whole dollars above; hidden under $0.10/h
+R_rate=""
+if [ "$rph" -ge 10 ]; then
+  if [ "$rph" -lt 995 ]; then x1=$(( (rph + 5) / 10 )); R_rate="\$$(( x1 / 10 )).$(( x1 % 10 ))/h"
+  else R_rate="\$$(( (rph + 50) / 100 ))/h"; fi
+  R_rate="${DIM}${R_rate}${RESET}"
 fi
 
 # --- layout: identity, then numbers ---
 # Quiet by default: no separators and almost no labels; spacing sets the groups apart. Identity
 # hues (dir, branch, worktree) and the cost bar are fixed; otherwise only exceptions carry colour
-# (dirty tree, behind upstream, context ≥70%, cold cache, a TTL other than 1h, misses, PR state).
+# (dirty tree, behind upstream, context ≥70%, cache expiring or cold, a TTL other than 1h, misses,
+# PR state).
 L_model="${BOLD}${model}${RESET}"; L_eff=${effort:+ ${DIM}${effort}${RESET}}
 
 # where: the dir's last component, then branch (+ dirty marker, commits ahead/behind upstream,
@@ -299,28 +431,52 @@ if [ "$tok" -gt 0 ]; then
   R_ctx="${c}${gf// /━}${RESET}${GRAY}${ge// /─}${RESET} $R_ctxs"
 fi
 
-# prompt cache (main conversation): ● and the minutes left while warm; ○ cold once it expires
-# (the next request then re-caches the whole context, which the gauge already shows). A TTL other
-# than 1h follows the minutes (3m/5m): on a subscription the main conversation drops to 5m once
-# usage credits kick in. The hit % only shows below 90%; misses (red) carry a short last-cause
-# label. Hidden if unreported.
+# prompt cache (main conversation): nothing while over 15 min are left (every request resets the
+# countdown, so while working it only reads 58-60), then the minutes left in yellow (a nudge to
+# send something before it expires), "cold" once it has (the next request then re-caches the
+# whole context, which the gauge already shows). A TTL other than 1h always shows, after the
+# minutes (3m/5m): on a subscription the main conversation drops to 5m once usage credits kick
+# in. Misses (red) carry a short last-cause label and go once 10 min pass with no new miss.
+# Hidden if unreported.
+# misses fade: a miss is worth a glance while fresh, but the count lingering all session is noise.
+# Each new miss restarts a miss_ttl countdown; when it runs out every miss so far is forgotten, so
+# <n>✗ counts the misses since the last 10 min without one. State in miss-<sid>: the count
+# already forgotten, the count seen at the last refresh (to spot a new miss), and when that new
+# miss landed. No file (a new session, or pruned after a week unchanged) forgets what's there, so
+# an old count never comes back as new. A render that saw the cost drop once (maybe older JSON
+# landing late, see the window) only reads the state.
+miss_ttl=600
+v_miss=$s_miss
+if [ -n "$sid" ]; then
+  mf="$cache_dir/miss-$sid"
+  if get "$mf" m_base m_seen m_ts; then
+    for v in m_base m_seen m_ts; do [[ ${!v} =~ ^[0-9]+$ ]] || printf -v "$v" 0; done
+  else m_base=$s_miss; m_seen=$s_miss; m_ts=0; fi
+  if [ -z "$stale" ]; then
+    [ "$m_base" -gt "$s_miss" ] && m_base=$s_miss            # the baseline moved (compaction, /clear)
+    [ "$s_miss" -gt "$m_seen" ] && m_ts=$now                 # a new miss restarts the fade
+    m_seen=$s_miss
+    [ "$m_ts" -gt 0 ] && [ $(( now - m_ts )) -ge "$miss_ttl" ] && m_base=$s_miss
+    put "$mf" "$m_base" "$m_seen" "$m_ts"
+  fi
+  v_miss=$(( s_miss > m_base ? s_miss - m_base : 0 ))
+fi
+
 R_cache=""
 if [ "$pc_seen" = true ]; then
   t=""; [ -n "$pc_ttl" ] && [ "$pc_ttl" != 1h ] && t="${WARN}/${pc_ttl}${RESET}"
-  left=0
+  left=0; [ "$pc_warm" = true ] && left=999                  # warm, expiry unreported: plenty
   [ "$pc_warm" = true ] && [ -n "$pc_exp" ] && left=$(( (pc_exp - now + 59) / 60 ))
-  if [ "$left" -gt 0 ]; then
-    R_cache="${GRAY}●${RESET} ${DIM}${left}m${RESET}${t}"
-    [ -n "$pc_hit" ] && [ "$pc_hit" -lt 90 ] && R_cache+=" ${DIM}${pc_hit}%${RESET}"
-  else
-    R_cache="${WARN}○ cold${RESET}${t}"
+  if [ "$left" -le 0 ]; then R_cache="${WARN}cold${RESET}${t}"
+  elif [ -n "$t" ]; then R_cache="${pc_exp:+${DIM}${left}m${RESET}}${t}"  # a short TTL: always
+  elif [ "$left" -le 15 ]; then R_cache="${WARN}${left}m${RESET}"         # about to expire
   fi
-  [ "$s_miss" -gt 0 ] && R_cache+=" ${ALERT}${s_miss}✗${RESET}${pc_cause:+ ${DIM}${pc_cause}${RESET}}"
+  [ "$v_miss" -gt 0 ] && R_cache+="${R_cache:+ }${ALERT}${v_miss}✗${RESET}${pc_cause:+ ${DIM}${pc_cause}${RESET}}"
 fi
 
 # cost: session total ($0.00 omitted), or only what accrued since the last compaction once a
-# baseline exists ($0.00 shown, marking the reset); the last increase (Δ) and its colour bar
-# follow at assembly.
+# baseline exists ($0.00 shown, marking the reset); the rate, $/M and the spend bar follow at
+# assembly.
 usd "$s_cost" amt; R_cost=""
 { [ -n "$base" ] || [ "$amt" != 0.00 ]; } && R_cost="\$${amt}"
 
@@ -339,10 +495,10 @@ fi
 # --- assemble ---
 # $COLUMNS is the terminal width (Claude Code sets it; tput can't see the terminal from here).
 # Widths are counted with colour codes stripped (split on ESC, no pattern loop: an extglob took
-# seconds per call on a long row), in a UTF-8 locale so ━ ● ↑ count as one; `local -` scopes the
+# seconds per call on a long row), in a UTF-8 locale so ━ ✗ ↑ count as one; `local -` scopes the
 # set -f that keeps the dirty marker from globbing. When the row doesn't fit, detail goes in this
-# order: the increase's split, the effort, the gauge (tokens stay), the increase, the dir (branch
-# stays), the cache. Without $COLUMNS nothing is fitted.
+# order: the spend bar, the effort, the gauge (tokens stay), $/M, the rate, the dir (branch stays),
+# the cache. Without $COLUMNS nothing is fitted.
 vis() { local - LC_ALL=C.UTF-8 IFS=$'\033' o a; set -f; a=( $1 )
         o=${a[0]}; a[0]=m; IFS=; o+="${a[*]#*m}"; printf -v "$2" '%s' "${#o}"; }
 join() { local v=$1 sep=$2 s o=""; shift 2; for s; do o+=${s:+${o:+$sep}$s}; done; printf -v "$v" '%s' "$o"; }
@@ -351,11 +507,11 @@ cols=${COLUMNS:-0}; [[ $cols =~ ^[0-9]+$ ]] || cols=0
 # Claude Code truncates the status line with "…" once it reaches COLUMNS − 3 (observed), so the
 # whole row (leading space included) stays at COLUMNS − 4: W is the room after the leading space.
 W=$(( cols - 5 ))
-eff=$L_eff; inc=$dbrk; ctxs=$R_ctx; dirs=$L_dir; cache=$R_cache; tried=""
-for lvl in 0 1 2 3 4 5 6; do
-  case $lvl in 1) inc=$dmin ;; 2) eff="" ;; 3) ctxs=$R_ctxs ;; 4) inc="" ;; 5) dirs="" ;; 6) cache="" ;; esac
+eff=$L_eff; inc=$dbrk; ctxs=$R_ctx; rt=$R_rate; dirs=$L_dir; cache=$R_cache; tried=""
+for lvl in 0 1 2 3 4 5 6 7; do
+  case $lvl in 1) inc=$dmin ;; 2) eff="" ;; 3) ctxs=$R_ctxs ;; 4) inc="" ;; 5) rt="" ;; 6) dirs="" ;; 7) cache="" ;; esac
   join where " " "$dirs" "$s_git"; join left "$G" "$L_model$eff" "$where"
-  join cseg " " "$R_cost" "$inc"; join right "$G" "$ctxs" "$cache" "$cseg" "$R_pr"
+  join cseg "$G" "$R_cost" "$rt" "$inc"; join right "$G" "$ctxs" "$cache" "$cseg" "$R_pr"
   [ "$cols" -gt 0 ] || break
   [ "$left$G$right" = "$tried" ] && continue; tried=$left$G$right   # this level dropped nothing
   vis "$tried" w; [ "$w" -le "$W" ] && break
