@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Claude usage badge for the tmux status bar.
 #
-# Prints a tmux-styled one-liner: the Claude Code spend rate (last 15 min, $/h) from
-# the status line's usage logs, then session (5h) + weekly (7d, incl. per-model)
-# usage from the Claude OAuth usage endpoint, the session and weekly percentages
-# between what their window has spent so far and its time left, e.g.:
+# Prints a tmux-styled one-liner: the Claude Code spend rate (last 15 min, $/h), then session
+# (5h) + weekly (7d, incl. per-model) usage from the Claude OAuth usage endpoint, the session and
+# weekly percentages between what their window has spent so far and its time left, e.g.:
 #   $26/h ┊ $31 16% 3.5h ┊ $151 80% 5.3d ┊ 43% Fable
 # Gauges render in the API's order (session, weekly, then one per active model);
 # session and weekly show a reset countdown, per-model gauges are labeled with
 # the model name. Each percentage is colored by threshold (green <50 · amber
 # 50-80 · red >80); all other text is dim. Bash + jq, like its siblings here.
+#
+# Spend comes from claude-spend (`claude-spend usage`: every session on every host, priced
+# from the transcripts; source in ~/tempo/statusline). Without claude-spend the badge shows the
+# limits alone.
 #
 # The API response is cached for $TTL seconds as data, not markup, and the pill is
 # drawn from it on every redraw: the status bar redraws every status-interval (15s)
@@ -27,73 +30,40 @@ HERE="${0%/*}"
 
 # OAuth token file written by Claude Code, in its config dir (~/.config/claude here).
 CRED="${CLAUDE_CONFIG_DIR:-$HOME/.config/claude}/.credentials.json"
-# The cache: a header line (last fetch attempt, the weekly window's spend in
-# nano-dollars), then one line per limit, in the API's order:
+CS="${CLAUDE_SPEND_BIN:-claude-spend}"
+# The cache: a header line (last fetch attempt), then one line per limit, in the
+# API's order:
 #   percent ␟ kind ␟ reset epoch (0: none) ␟ model label
 # Fields are joined with \x1f (unit separator), NOT a tab: most rows carry an empty
 # field, and a tab is IFS-whitespace, so `read` would collapse empty fields and
 # shift the rest; \x1f is not, so they survive the split.
 CACHE="${TMPDIR:-/tmp}/claude-usage.$EUID.limits"
 TTL=60 # seconds to cache a response before refetching
-LOGDIR="${CLAUDE_USAGE_LOG_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/claude}"
 NOW=$EPOCHSECONDS
-H5=18000 D7=604800 Q15=900 # the session and weekly windows, and the rate's 15 min
 US=$'\x1f'
 DIM="#[fg=${CU_TIME}]"
 SEP=" #[fg=${CU_SEP}]┊ " # dotted-bar separator between gauges
 
 # The cached limits, read forklessly (the common path touches no network).
-C_AT=0 C_W7=0 L=()
+C_AT=0 L=()
 if [ -f "$CACHE" ]; then
     {
-        IFS=$US read -r C_AT C_W7 || true
+        IFS=$US read -r C_AT || true
         while IFS= read -r x; do if [ -n "$x" ]; then L+=("$x"); fi; done
     } <"$CACHE"
 fi
 [[ $C_AT =~ ^[0-9]+$ ]] || C_AT=0
-[[ $C_W7 =~ ^-?[0-9]+$ ]] || C_W7=0
 
-# starts: T5 and T7, when the session and weekly windows began (their reset minus
-# 5 h / 7 d), or 0 if unknown or already reset.
-starts() {
-    local x p k r l
-    T5=0 T7=0
-    for x in "${L[@]}"; do
-        IFS=$US read -r p k r l <<<"$x"
-        if ((r > NOW)); then
-            case $k in
-                session) T5=$((r - H5)) ;;
-                weekly_all) T7=$((r - D7)) ;;
-            esac
-        fi
-    done
-}
-
-# spend T5 T7: from the Claude Code status line's usage logs (statusline.sh writes one
-# usage-<host>.log per machine into $CLAUDE_USAGE_LOG_DIR; this reads a line's time,
-# column 1, and cost increase in nano-dollars, column 7), S5 and S7, what the session
-# and weekly windows have spent since they began (not summed for a 0 start), and SQ,
-# the last 15 min. Each log is read backwards (tac) in one pass, only as far as the
-# earliest start needed: the session window (or 15 min) on every redraw, the week
-# only on a fetch (that sum is then cached). Blank or torn lines are skipped. Only
-# what the logs hold counts: spend from before a log began, or from sessions
-# without the status line, is missing.
+# spend: from claude-spend, for the logged-in account, S5 and S7, what the session and
+# weekly windows have spent, SQ, the last 15 min, and E5 and E7, the windows' resets.
+# Nano-dollars and epochs; zero and empty when claude-spend is missing or fails.
 spend() {
-    local f a b c q=$((NOW - Q15)) cut
-    cut=$q
-    if (($1 && $1 < cut)); then cut=$1; fi
-    if (($2 && $2 < cut)); then cut=$2; fi
-    S5=0 S7=0 SQ=0
-    while read -r a b c; do
-        S5=$((S5 + a)) S7=$((S7 + b)) SQ=$((SQ + c))
-    done < <(for f in "$LOGDIR"/usage-*.log; do
-        [ -f "$f" ] || continue
-        tac "$f" 2>/dev/null | awk -F'\t' -v c="$cut" -v s5="$1" -v s7="$2" -v q="$q" '
-          $1 !~ /^[0-9]+$/ { next }                  # the header, blank or torn lines
-          $1 < c { exit }
-          { if (s5 && $1 >= s5) w5 += $7; if (s7 && $1 >= s7) w7 += $7; if ($1 >= q) wq += $7 }
-          END { printf "%.0f %.0f %.0f\n", w5, w7, wq }' || true
-    done)
+    S5=0 S7=0 SQ=0 E5="" E7=""
+    command -v "$CS" >/dev/null 2>&1 || return 0
+    eval "$("$CS" usage --account current 2>/dev/null | jq -r '
+      def nano: if type == "number" then . * 1e9 | round else 0 end;
+      @sh "S5=\(.five_hour.usd | nano) S7=\(.seven_day.usd | nano) SQ=\(.rate.usd_per_hour | nano / 4 | floor)",
+      @sh "E5=\(.five_hour.resets_at // "") E7=\(.seven_day.resets_at // "")"' 2>/dev/null)" || true
 }
 
 # tenths VALUE DIVISOR VAR: VALUE / DIVISOR to one decimal, "d.d". Pure integer math
@@ -125,7 +95,6 @@ countdown() {
     elif ((s >= 3600)); then tenths "$s" 3600 d; printf -v "$2" '%sh' "$d"
     else printf -v "$2" '%dm' $((s / 60)); fi
 }
-
 # draw: the pill from the limits and the spend: the rate, then each gauge — the
 # session and weekly ones led by their window's spend, per-model ones carrying their
 # label, the others their countdown. bg set once; the #[fg=...] changes leave it
@@ -133,9 +102,14 @@ countdown() {
 # it in status-right (see tmux.conf), so #[default] resets right at its edge.
 draw() {
     local x p k r l g c cd d5 d7 out
-    usd "$S5" d5; usd "$C_W7" d7; rate "$SQ" out
+    usd "$S5" d5; usd "$S7" d7; rate "$SQ" out
     for x in "${L[@]}"; do
         IFS=$US read -r p k r l <<<"$x"
+        # the session and weekly gauges show claude-spend's own reset
+        case $k in
+            session) if [[ $E5 =~ ^[0-9]+$ ]]; then r=$E5; fi ;;
+            weekly_all) if [[ $E7 =~ ^[0-9]+$ ]]; then r=$E7; fi ;;
+        esac
         if ((p >= CU_RED_AT)); then c=$CU_RED
         elif ((p >= CU_AMBER_AT)); then c=$CU_AMBER
         else c=$CU_GREEN; fi
@@ -151,11 +125,11 @@ draw() {
     if [ -n "$out" ]; then printf '%s' "#[bg=${CU_PILL}] ${out} #[default]"; fi
 }
 
-# save: rewrite the cache from C_AT, C_W7 and L, through a temp file per process
-# (tmux runs this once per attached client, so writes can overlap).
+# save: rewrite the cache from C_AT and L, through a temp file per process (tmux
+# runs this once per attached client, so writes can overlap).
 save() {
     {
-        printf '%s\n' "$C_AT$US$C_W7"
+        printf '%s\n' "$C_AT"
         if ((${#L[@]})); then printf '%s\n' "${L[@]}"; fi
     } 2>/dev/null >"$CACHE.tmp.$$" && mv -f "$CACHE.tmp.$$" "$CACHE" 2>/dev/null || true
 }
@@ -193,10 +167,9 @@ fetch() {
     mapfile -t L <<<"$rows"
 }
 
-# Fresh limits: draw with the live session spend and bail (the common path).
+# Fresh limits: draw with the live spend and bail (the common path).
 if ((NOW - C_AT < TTL)); then
-    starts
-    spend "$T5" 0
+    spend
     draw
     exit 0
 fi
@@ -209,11 +182,8 @@ fi
 C_AT=$NOW
 save
 
-# Then, fetched or not, one log pass for everything, from the new limits or the
-# last ones: the week's spend (cached) and the live figures.
+# Then, fetched or not, draw from the new limits or the last ones.
 fetch || true
-starts
-spend "$T5" "$T7"
-C_W7=$S7
 save
+spend
 draw
