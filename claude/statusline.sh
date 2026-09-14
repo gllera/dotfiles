@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code status line
 # Reads the session JSON on stdin and prints one left-aligned row, fitted to $COLUMNS (wrapped here):
-#   <model> <effort>  <dir> <branch>* ↑<ahead>↓<behind> ⎇ <worktree>  ━━━━──── <tok>K
+#   <model> <effort>  [⎇ ]<dir> <branch>* ↑<ahead>↓<behind>  ━━━━──── <tok>K
 #   … [<min>m][/<ttl>] <n>✗ <cause>  (or cold)  $<cost>  $<rate>/h  ⇣$<saves>/h  $<per 1M>/M  ████████  #<pr>
 # Nothing is padded: Claude Code doesn't re-run the script on a resize, so a shrink cuts the
 # row's end until the next refresh (refreshInterval: 5 s).
@@ -193,15 +193,16 @@ fi
 # the compaction hint, PR state).
 L_model="${BOLD}${model}${RESET}"; L_eff=${effort:+ ${DIM}${effort}${RESET}}
 
-# where: the dir's last component, then branch (+ dirty marker, commits ahead/behind upstream,
-# linked-worktree name). Unpushed commits are normal (dim); dirty or behind is worth a glance.
-L_dir=${dir:+${DIRC}${dir}${RESET}}
+# where: the dir's last component (prefixed with ⎇ when in a linked worktree), then branch
+# (+ dirty marker, commits ahead/behind upstream). Unpushed commits are normal (dim); dirty or
+# behind is worth a glance.
+L_dir=${dir:+${wt:+${WTC}⎇ ${RESET}}${DIRC}${dir}${RESET}}
 s_git=""
 if [ -n "$branch" ]; then
   ab=""
   [ "${ahead:-0}" -gt 0 ] 2>/dev/null && ab="${DIM}↑${ahead}${RESET}"
   [ "${behind:-0}" -gt 0 ] 2>/dev/null && ab+="${WARN}↓${behind}${RESET}"
-  s_git="${BRANCH}${branch}${RESET}${WARN}${dirty}${RESET}${ab:+ $ab}${wt:+ ${WTC}⎇ ${wt}${RESET}}"
+  s_git="${BRANCH}${branch}${RESET}${WARN}${dirty}${RESET}${ab:+ $ab}"
 fi
 
 # context: an 8-cell gauge of the window, then the K-tokens in use. Neutral below 70%, WARN from
